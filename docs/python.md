@@ -1,3 +1,8 @@
+> Older device or install failure? Start with [COMPATIBILITY.md](COMPATIBILITY.md)
+> and `sh scripts/compatibility.sh`. `install.sh --profile control` requires no
+> third-party crypto packages; it does not enable vault operations. Use package
+> versions from your supported Alpine release and verify actual imports/self-tests.
+
 # Python on iSH
 
 ## Problem

@@ -1,4 +1,4 @@
-# iSH Toolkit 3.0.0-preview
+# iSH Toolkit 3.0.1-preview
 
 **Early release, not independently security-audited.** Start with the
 [Safe learning guide](docs/SAFE_START.md), use dummy data, and keep independent
@@ -17,6 +17,13 @@ provisioning, cloud subscription, background daemon or quota bypass is required.
 Read the [new compute guide](docs/CLOUD_COMPUTE.md) and
 [validation record](docs/COMPUTE_VALIDATION.md) before remote use. This is a preview: the
 new runtime has not yet been verified on your iPhone or live cloud-console accounts.
+
+## Older iPhones and mixed devices
+
+Use the [compatibility guide](docs/COMPATIBILITY.md). We target runtime capabilities,
+not a guessed iPhone generation. New: dependency-light `--profile control`, a
+no-Python shell report, `ish compatibility`, `ish selftest --control`, and portable
+select-based job I/O. No claim of every-generation testing is made.
 
 ## Install from this repository
 

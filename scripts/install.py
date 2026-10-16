@@ -15,11 +15,16 @@ TOOLS = ('ish', 'ish-db', 'ish-doctor', 'ish-compute', 'ish-workspace', 'ish-bac
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--profile', choices=('full', 'control'), default='full', help='control installs stdlib compute tools only; full also requires crypto dependencies')
     parser.add_argument('--bin-dir', type=Path, default=Path.home() / '.local' / 'bin')
     args = parser.parse_args()
     if sys.version_info < (3, 10):
         parser.error('Python 3.10 or newer is required')
-    for module in ('sqlite3', 'fcntl', 'cryptography.hazmat.primitives.ciphers.aead', 'argon2.low_level', 'pyotp'):
+    modules = ['sqlite3', 'fcntl']
+    if args.profile == 'full':
+        modules += ['cryptography.hazmat.primitives.ciphers.aead', 'argon2.low_level', 'pyotp']
+    tools = TOOLS + ('ish-compatibility',) if args.profile == 'full' else ('ish', 'ish-compute', 'ish-compatibility')
+    for module in modules:
         try:
             importlib.import_module(module)
         except ImportError:
@@ -29,14 +34,14 @@ def main():
             compile(path.read_text(), str(path), 'exec')
     bindir = args.bin_dir.expanduser().absolute()
     bindir.mkdir(parents=True, exist_ok=True)
-    for name in TOOLS:
+    for name in tools:
         target = bindir / name
         if target.is_dir() and not target.is_symlink():
             parser.error(f'Cannot replace directory: {target}')
     backup = Path(tempfile.mkdtemp(prefix='ish-toolkit-install-backup-', dir=bindir))
     installed = []
     try:
-        for name in TOOLS:
+        for name in tools:
             target = bindir / name
             if target.exists() or target.is_symlink():
                 shutil.copy2(target, backup / name, follow_symlinks=False)
@@ -66,7 +71,8 @@ def main():
     print(f'Previous launchers saved in {backup}')
     print('Keep this source folder in place; launchers refer to it.')
     print('Run: export PATH="$HOME/.local/bin:$PATH"')
-    print('Then: ish selftest --full')
+    print('Profile: ' + args.profile)
+    print('Then: ish selftest --full' if args.profile == 'full' else 'Then: ish compatibility; ish selftest --control')
     print('Existing v2 vault: run ish vault verify; no migration or initialization needed.')
     print('Legacy vault only: stop old clients, preserve data, then run ish vault migrate.')
     return 0

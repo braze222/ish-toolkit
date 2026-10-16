@@ -20,7 +20,7 @@ ish status
 ish run --spec examples/jobs/local.json
 ```
 
-Expected version: `ish-toolkit 3.0.0-preview`. The final command only plans.
+Expected version: `ish-toolkit 3.0.1-preview`. The final command only plans.
 Run a dummy local example with `--execute` before configuring remote accounts.
 A successful older self-test does not verify the new SSH/Actions/device paths.
 Read docs/CLOUD_COMPUTE.md and docs/COMPUTE_VALIDATION.md for supported behavior.

@@ -162,7 +162,7 @@ def run(request, directory):
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
         state.update(state='running', updated_at=time.time())
         save(directory / 'state.json', state)
-        selector = selectors.DefaultSelector()
+        selector = selectors.SelectSelector()
         selector.register(child.stdout, selectors.EVENT_READ)
         end = time.monotonic() + spec['timeout']
         forced = None

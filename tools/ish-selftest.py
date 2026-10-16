@@ -7,16 +7,20 @@ import sys
 import tempfile
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from lib.storage import lock, StorageError, sync_dir, publish_new
-from lib import workspaces, backups, transfer, recovery, keys
-from lib.db import SQLiteDB
-from lib.db_policy import DBPolicy
-from lib.vault_store import VaultStore
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--full', action='store_true', help='Also exercise Argon2, vault rotation and encrypted vault recovery; slower on iSH')
+    parser.add_argument('--control', action='store_true', help='Only stdlib storage and compute tests; no crypto packages needed')
     args = parser.parse_args(argv)
+    if args.control and args.full:
+        parser.error('--control and --full are mutually exclusive')
+    if not args.control:
+        from lib import workspaces, backups, transfer, recovery, keys
+        from lib.db import SQLiteDB
+        from lib.db_policy import DBPolicy
+        from lib.vault_store import VaultStore
     old_home = os.environ.get('HOME')
     try:
         with tempfile.TemporaryDirectory(prefix='ish-selftest-') as directory:
@@ -31,27 +35,28 @@ def main(argv=None):
             publish_new(staged, base / 'published')
             sync_dir(base)
             print('PASS: filesystem primitives', flush=True)
-            info = workspaces.create('selftest')
-            path = workspaces.resolve_database('@selftest')
-            with SQLiteDB(path, DBPolicy(False, True)) as db:
-                db.execute('CREATE TABLE sample(value TEXT)')
-                db.execute('INSERT INTO sample VALUES (?)', ('expected',))
-            snapshot = backups.create('@selftest')
-            backups.verify(snapshot['id'])
-            destination = base / 'restored.db'
-            backups.restore(snapshot['id'], destination)
-            with SQLiteDB(destination) as db:
-                if db.query('SELECT * FROM sample') != [{'value': 'expected'}]:
-                    raise RuntimeError('restored contents differ')
-                try: db.execute('DELETE FROM sample')
-                except Exception: pass
-                else: raise RuntimeError('read-only write permitted')
-            bundle = base / 'selftest.ishbackup'
-            transfer.export_bundle(snapshot['id'], bundle)
-            import shutil
-            shutil.rmtree(backups.root() / snapshot['id'])
-            transfer.import_bundle(bundle)
-            print('PASS: workspace, SQLite policy, backup export/import and restore', flush=True)
+            if not args.control:
+                info = workspaces.create('selftest')
+                path = workspaces.resolve_database('@selftest')
+                with SQLiteDB(path, DBPolicy(False, True)) as db:
+                    db.execute('CREATE TABLE sample(value TEXT)')
+                    db.execute('INSERT INTO sample VALUES (?)', ('expected',))
+                snapshot = backups.create('@selftest')
+                backups.verify(snapshot['id'])
+                destination = base / 'restored.db'
+                backups.restore(snapshot['id'], destination)
+                with SQLiteDB(destination) as db:
+                    if db.query('SELECT * FROM sample') != [{'value': 'expected'}]:
+                        raise RuntimeError('restored contents differ')
+                    try: db.execute('DELETE FROM sample')
+                    except Exception: pass
+                    else: raise RuntimeError('read-only write permitted')
+                bundle = base / 'selftest.ishbackup'
+                transfer.export_bundle(snapshot['id'], bundle)
+                import shutil
+                shutil.rmtree(backups.root() / snapshot['id'])
+                transfer.import_bundle(bundle)
+                print('PASS: workspace, SQLite policy, backup export/import and restore', flush=True)
             from lib.orchestration import engine
             job = engine.submit({'command': [sys.executable, '-c',
                 'from pathlib import Path; print("compute-selftest"); Path("result.txt").write_text("expected")'],

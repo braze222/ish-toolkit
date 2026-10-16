@@ -1,3 +1,14 @@
+# 3.0.1-preview — older-device compatibility paths
+
+- Add a dependency-light control install and isolated control self-test.
+- Add read-only shell/Python diagnostics that do not assume iOS/device detection.
+- Use select-based pipe I/O rather than epoll/kqueue in the controller and endpoint.
+- Explain missing/old Python and optional crypto dependency failures clearly.
+- Preserve full-strength vault encryption, fail-closed storage and existing data.
+
+The reported older iOS 16 failure is not yet reproduced; exact device/error output
+is still required. See docs/COMPATIBILITY.md for supported runtime requirements.
+
 # 3.0.0-preview — explicit compute control plane
 
 - Adds private versioned config, strict job validation, explainable backend

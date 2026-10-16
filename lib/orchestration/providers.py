@@ -33,7 +33,7 @@ def bounded(command, payload=b'', timeout=30, limit=16*1024*1024, env=None):
     """Drain both pipes without retaining stderr or unbounded provider output."""
     p = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                          env=env, start_new_session=True)
-    sel = selectors.DefaultSelector()
+    sel = selectors.SelectSelector()
     os.set_blocking(p.stdout.fileno(), False); sel.register(p.stdout, selectors.EVENT_READ)
     os.set_blocking(p.stdin.fileno(), False)
     if payload:

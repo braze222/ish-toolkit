@@ -19,10 +19,12 @@ from ..storage import private_dir, lock
 def unlock(refs):
     if not refs:
         return {}
-    from ..vault_store import VaultStore
+    try:
+        from ..vault_store import VaultStore, VaultError
+    except (ImportError, OSError):
+        raise ComputeError('vault references require full security dependencies; control-only jobs must omit secrets') from None
     password = getpass.getpass('Vault master password (never sent to provider): ')
     store = VaultStore()
-    from ..vault_store import VaultError
     try:
         values = {key: store.get(ref.removeprefix('vault:'), password) for key, ref in refs.items()}
     except VaultError:
