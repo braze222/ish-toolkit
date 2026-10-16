@@ -19,7 +19,10 @@ def main():
         print('ish-toolkit 3.0.0-preview')
         return 0
     if sys.argv[1] in ('status', 'init', 'config', 'cloud', 'hosts', 'run', 'jobs'):
-        return subprocess.run([sys.executable, str(Path(__file__).resolve().parent / 'ish-control.py'), *sys.argv[1:]]).returncode
+        try:
+            return subprocess.run([sys.executable, str(Path(__file__).resolve().parent / 'ish-control.py'), *sys.argv[1:]]).returncode
+        except KeyboardInterrupt:
+            return 130
     script = COMMANDS.get(sys.argv[1])
     if script is None:
         print('ish: unknown command', file=sys.stderr)

@@ -262,11 +262,15 @@ def test_mock_github_error_never_exposes_response_body():
     import urllib.error
     client=providers.GitHub(profile(),token='dummy-test-only')
     class Opener:
+        code = 403
         def open(self,*args,**kwargs):
-            raise urllib.error.HTTPError('https://api.github.com',403,'forbidden',{},io.BytesIO(b'private-body'))
+            raise urllib.error.HTTPError('https://api.github.com',self.code,'denied',{},io.BytesIO(b'private-body'))
     client.opener=Opener()
-    with pytest.raises(ComputeError) as error:client.api('/repos/owner/repo')
-    assert 'private-body' not in str(error.value) and '403' in str(error.value)
+    for code in (403,429):
+        client.opener.code=code
+        with pytest.raises(ComputeError) as error:client.api('/repos/owner/repo')
+        assert 'private-body' not in str(error.value) and str(code) in str(error.value)
+        if code==429:assert 'rate limit' in str(error.value)
 
 
 def test_mock_github_archive_redirect_cannot_steal_token():
