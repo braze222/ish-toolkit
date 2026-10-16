@@ -15,7 +15,7 @@ integration, with AWS and Azure discovery/setup alongside it. No resource
 provisioning, cloud subscription, background daemon or quota bypass is required.
 
 Read the [new compute guide](docs/CLOUD_COMPUTE.md) and
-[validation record](docs/COMPUTE_VALIDATION.md) before remote use. This is a preview: the
+[validation record](docs/COMPUTE_VALIDATION.md) and [release readiness](docs/RELEASE_READINESS.md) before remote use. This is a preview: the
 new runtime has not yet been verified on your iPhone or live cloud-console accounts.
 
 ## Older iPhones and mixed devices
