@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "type": "workflow",
+  "task": "smoke",
+  "backend": "github",
+  "timeout": 300
+}

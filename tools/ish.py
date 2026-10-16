@@ -11,13 +11,15 @@ COMMANDS = {'db': 'ish-db.py', 'doctor': 'ish-doctor.py', 'vault': 'vault.py',
 
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] in ('-h', '--help'):
+    if len(sys.argv) < 2 or sys.argv[1] in ('-h', '--help', 'help'):
         print('Usage: ish {db|workspace|backup|vault|totp|crypt|doctor|selftest|compute|shred} [arguments]')
-        print('Core: offline security utilities and local SQLite. Compute: existing status checks only.')
+        print('Compute: status | init | config | cloud | hosts | run | jobs. Run plans by default; see docs/CLOUD_COMPUTE.md.')
         return 0
     if sys.argv[1] == '--version':
-        print('ish-toolkit 2.1.1-local')
+        print('ish-toolkit 3.0.0-preview')
         return 0
+    if sys.argv[1] in ('status', 'init', 'config', 'cloud', 'hosts', 'run', 'jobs'):
+        return subprocess.run([sys.executable, str(Path(__file__).resolve().parent / 'ish-control.py'), *sys.argv[1:]]).returncode
     script = COMMANDS.get(sys.argv[1])
     if script is None:
         print('ish: unknown command', file=sys.stderr)

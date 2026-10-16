@@ -31,3 +31,5 @@ jobs:
         run: python -m pip_audit -r requirements.txt
       - name: Audit resolved development dependencies
         run: python -m pip_audit -r requirements-dev.txt
+      - name: Audit optional integration test dependencies
+        run: python -m pip_audit -r requirements-integration.txt

@@ -31,3 +31,23 @@ malicious SQLite/archive handling, resource-exhaustion bounds, recovery during
 power loss, and platform-specific filesystem behavior. Process-kill tests are
 not a proof of every power-loss scenario. Do not describe this document as an
 audit, certification, penetration test or guarantee.
+
+## 3.0 compute extension
+
+Trust additionally includes the explicitly selected host, its administrators,
+executed repository/workload, GitHub repository writers, official provider APIs
+and installed CLI/runtime dependencies. Verified SSH protects channel identity,
+not the remote account against its administrator. Private job directories do not
+isolate code from other files owned by the same account.
+
+Controls: strict SSH identity, no agent forwarding, bounded JSON transports,
+allowlisted workflow tasks, exact workflow/commit checks, explicit execution and
+credential/cost grants, no implicit retry, private metadata, sanitized bounded logs,
+no-overwrite artifact publication, archive/path validation and no provisioning.
+
+Residual risks: account compromise; malicious authorized commands; secret
+transformation/exfiltration; partial artifact folders; stale measurements; unknown
+outcomes after abrupt termination; workers or containers surviving failed cleanup;
+provider/ref-policy changes; dependency compromise; iSH syscall differences.
+These remain reasons to use dedicated low-privilege environments and independent
+backups, not claims of complete cyber protection.

@@ -1,3 +1,41 @@
+# Upgrade to the 3.0 compute preview
+
+Keep your working installation and independent encrypted backups. Use a new
+source directory; do not overwrite an existing checkout with uncommitted work.
+Installation changes launchers and keeps their previous versions in the reported
+backup directory. Vault format is unchanged; do not initialize or migrate an
+already working v2 vault.
+
+```sh
+git clone https://github.com/braze222/ish-toolkit.git ~/ish-toolkit-v3-preview
+cd ~/ish-toolkit-v3-preview
+ISH_PYTHON=/root/venv/bin/python sh install.sh
+export PATH="$HOME/.local/bin:$PATH"
+hash -r
+ish --version
+ish selftest --full
+ish vault verify
+ish init
+ish status
+ish run --spec examples/jobs/local.json
+```
+
+Expected version: `ish-toolkit 3.0.0-preview`. The final command only plans.
+Run a dummy local example with `--execute` before configuring remote accounts.
+A successful older self-test does not verify the new SSH/Actions/device paths.
+Read docs/CLOUD_COMPUTE.md and docs/COMPUTE_VALIDATION.md for supported behavior.
+No command above creates a cloud resource, sends secrets or submits remote work.
+
+Rollback: run `sh install.sh` from the preserved previous source using the same
+Python interpreter. Check `ish --version` and `ish vault verify`. New compute
+metadata remains untouched. Keep any running job IDs and reconcile them before
+retiring the new CLI. Removing a launcher/profile does not stop remote work.
+
+The previous archive-based instructions below remain for users installing the
+older packaged 2.1 build; they do not install the 3.0 preview.
+
+---
+
 # Upgrade from the working v2 installation to 2.1
 
 Your existing v2 vault is compatible. Do not run vault init or vault migrate
@@ -87,7 +125,7 @@ See BOOKLET.md / the PDF for detailed workflows, validation and troubleshooting.
 
 ## 2.1.1 repository maintenance update
 
-The current repository reports 2.1.1-local. It preserves the v2 vault and
+The earlier maintenance release reported 2.1.1-local. It preserves the v2 vault and
 CRYPTv2 formats, hardens creation of crypt keys and fixes Python 3.10 database
 initialization. Reinstall launchers from your updated source checkout and run
 `ish selftest --full` before live use. No vault reinitialization or migration is

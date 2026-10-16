@@ -1,0 +1,2 @@
+# Optional userspace loopback SSH test server; not a toolkit runtime dependency.
+paramiko>=5.0.0,<6

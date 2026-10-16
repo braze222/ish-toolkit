@@ -25,7 +25,7 @@ def main():
         except ImportError:
             parser.error(f'Missing {module}. Activate your existing toolkit venv or see docs/python.md.')
     for directory in ('lib', 'tools'):
-        for path in (ROOT / directory).glob('*.py'):
+        for path in (ROOT / directory).rglob('*.py'):
             compile(path.read_text(), str(path), 'exec')
     bindir = args.bin_dir.expanduser().absolute()
     bindir.mkdir(parents=True, exist_ok=True)
@@ -60,6 +60,8 @@ def main():
             if saved.exists() or saved.is_symlink():
                 shutil.copy2(saved, target, follow_symlinks=False)
         raise
+    import platform
+    print(f'Platform: {platform.system()} {platform.machine()} {platform.release()}')
     print(f'Installed local toolkit from {ROOT}')
     print(f'Previous launchers saved in {backup}')
     print('Keep this source folder in place; launchers refer to it.')

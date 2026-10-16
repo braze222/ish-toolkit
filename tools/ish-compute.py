@@ -1,14 +1,7 @@
 #!/usr/bin/env python3
-
 import sys
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parent.parent
-
-sys.path.insert(0, str(ROOT))
-
-from lib.compute import main
-
-
-if __name__ == "__main__":
-    main()
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from lib.orchestration.cli import main
+if __name__ == '__main__':
+    raise SystemExit(main(['compute', *sys.argv[1:]]))

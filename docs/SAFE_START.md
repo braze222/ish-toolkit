@@ -11,7 +11,7 @@ ish selftest --full
 ish db doctor
 ```
 
-Your confirmed earlier iPhone result was for v2.0. New v2.1/2.1.1 code still needs
+Your confirmed earlier iPhone result was for v2.0. The 3.0 preview and intervening v2.1/2.1.1 code still need
 its own device test. The self-test uses temporary dummy data. Do not run vault
 init on your existing real vault. A GitHub update does not install itself.
 

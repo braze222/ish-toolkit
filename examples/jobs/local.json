@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "type": "command",
+  "command": ["python3", "-c", "from pathlib import Path; print('Hello from iSH compute'); Path('result.txt').write_text('practice result\\n')"],
+  "timeout": 30,
+  "backend": "local",
+  "outputs": ["result.txt"]
+}

@@ -35,5 +35,14 @@ jobs:
         run: |
           python -m compileall -q lib tools scripts tests
           sh -n install.sh
+          sh -n scripts/bootstrap-cloud.sh
       - name: Run tests, including isolated full self-test
         run: python -m pytest -q tests
+      - name: Install optional loopback SSH test dependency
+        if: matrix.python-version == '3.12'
+        run: python -m pip install -r requirements-integration.txt
+      - name: Exercise real OpenSSH transport on loopback
+        if: matrix.python-version == '3.12'
+        env:
+          ISH_TEST_SSH: '1'
+        run: python -m pytest -q tests/test_compute_ssh.py

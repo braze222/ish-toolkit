@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "type": "command",
+  "backend": "ssh:dev",
+  "command": ["python3", "-c", "import platform; from pathlib import Path; Path('platform.txt').write_text(platform.platform()); print('remote probe job complete')"],
+  "requires": {"os": "linux", "full_kernel": true},
+  "timeout": 30,
+  "outputs": ["platform.txt"]
+}

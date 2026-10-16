@@ -1,4 +1,4 @@
-# iSH Toolkit 2.1.1-local
+# iSH Toolkit 3.0.0-preview
 
 **Early release, not independently security-audited.** Start with the
 [Safe learning guide](docs/SAFE_START.md), use dummy data, and keep independent
@@ -7,10 +7,16 @@ recovery copies. Read [SECURITY.md](SECURITY.md) before storing important secret
 [![Toolkit tests](https://github.com/braze222/ish-toolkit/actions/workflows/python-package.yml/badge.svg)](https://github.com/braze222/ish-toolkit/actions/workflows/python-package.yml)
 [![Security baseline](https://github.com/braze222/ish-toolkit/actions/workflows/security.yml/badge.svg)](https://github.com/braze222/ish-toolkit/actions/workflows/security.yml)
 
-An offline command-line toolkit for encrypted secrets and TOTP, local SQLite
-workspaces, file encryption, and verified portable backups. Built for the
-user's iSH/Alpine workflow. No remote database, autonomous agent, paid service,
-background scheduling or new compute execution backend is included.
+An iSH/Alpine control terminal for offline security tools and explicitly authorized
+compute. Preserve encrypted secrets/TOTP, SQLite workspaces and portable backups;
+run reviewed commands locally or over verified SSH, and dispatch the bundled
+GitHub Actions workflow. Google Cloud Shell is the primary **interactive** console
+integration, with AWS and Azure discovery/setup alongside it. No resource
+provisioning, cloud subscription, background daemon or quota bypass is required.
+
+Read the [new compute guide](docs/CLOUD_COMPUTE.md) and
+[validation record](docs/COMPUTE_VALIDATION.md) before remote use. This is a preview: the
+new runtime has not yet been verified on your iPhone or live cloud-console accounts.
 
 ## Install from this repository
 
@@ -18,8 +24,8 @@ Clone the complete source; the installer no longer bootstraps the OS or download
 scripts. On your working iSH installation, reuse `/root/venv/bin/python`:
 
 ```sh
-git clone https://github.com/braze222/ish-toolkit.git ~/ish-toolkit-v2.1
-cd ~/ish-toolkit-v2.1
+git clone https://github.com/braze222/ish-toolkit.git ~/ish-toolkit-v3-preview
+cd ~/ish-toolkit-v3-preview
 ISH_PYTHON=/root/venv/bin/python sh install.sh
 export PATH="$HOME/.local/bin:$PATH"
 hash -r
@@ -39,18 +45,45 @@ Keep the source folder in place because launchers refer to it.
 - [Upgrade and recovery instructions](UPGRADE.md)
 - [Release notes](RELEASE_NOTES.md)
 
-This repository now contains the 2.1.1-local implementation described by the
-handbook. The packaged archive instructions in the book are an alternative to
-cloning the repository.
+The 2.1 handbook/PDF covers the preserved offline security tools. Its version and
+archive names are historical; the 3.0 compute commands are documented separately
+in [CLOUD_COMPUTE.md](docs/CLOUD_COMPUTE.md). Do not treat the old PDF as documentation
+of the new remote-execution boundary.
 
 ## Upgrade an installed v2 vault
 
-Read UPGRADE.md. Install this source in its own `~/ish-toolkit-v2.1` folder,
+Read UPGRADE.md. Install this source in its own `~/ish-toolkit-v3-preview` folder,
 then run `ish --version`, `ish selftest --full`, and `ish vault verify`.
 Do not reinitialize or migrate an already working v2 vault.
 Keep the source folder: launchers refer to it.
 
-## Added in 2.1
+## New compute quick start
+
+```sh
+ish init
+ish status
+ish compute providers
+ish cloud google open
+ish run --spec examples/jobs/local.json
+ish run --spec examples/jobs/local.json --execute
+ish jobs list
+```
+
+`run` plans by default. Remote work additionally needs `--allow-remote`; secret
+delivery needs `--allow-secrets`; unknown-cost targets need `--allow-cost`.
+These permissions cannot be granted by a downloaded job file. Read the exact
+command before executing it: an ordinary command runs with your account rights.
+
+The modular control plane separates schema/private state, provider transports,
+endpoint execution, scheduling and CLI. SSH requires independently verified
+host keys; logs are bounded and sanitized before saving; artifact paths and
+archives are constrained; connection loss never triggers automatic resubmission.
+See the guide for [host registration](docs/CLOUD_COMPUTE.md#connect-an-existing-linux-host),
+[Actions authentication](docs/CLOUD_COMPUTE.md#github-actions-setup),
+[secrets](docs/CLOUD_COMPUTE.md#secrets-and-log-safety) and
+[recovery/uninstall](docs/CLOUD_COMPUTE.md#operations-recovery-and-uninstall).
+
+## Preserved from 2.1
 
 - `ish backup export ID --to FILE.ishbackup` verifies and exports a portable bundle.
 - `ish backup import FILE.ishbackup` validates safe members, checksums, SQLite
@@ -115,7 +148,7 @@ python tools/ish.py selftest --full
 
 Build-host tests include separate-process interruption recovery, streaming
 corruption/truncation rejection, protected keys, legacy ciphertext, portable
-bundles, no-clobber behavior and installer/CLI workflows. On-device 2.1 validation
+bundles, no-clobber behavior and installer/CLI workflows. On-device validation of the new runtime
 is still required. The previous 2.0 full self-test passed on the user's iSH device.
 
 ## Security maintenance

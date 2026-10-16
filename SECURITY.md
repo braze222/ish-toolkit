@@ -47,3 +47,22 @@ self-test before using new code with live data.
   security review before high-assurance use.
 
 See docs/SAFE_START.md, docs/THREAT_MODEL.md and docs/MAINTAINER_SECURITY.md.
+
+## Compute preview boundary
+
+The 3.0 preview can execute commands with the local or remote account's rights.
+It is not a sandbox. Use dedicated unprivileged build accounts and dummy secrets.
+`--execute` grants the reviewed command permission to act; remote transport,
+secret delivery and unknown-cost targets require additional explicit CLI grants.
+No job specification may supply those grants. No adapter provisions resources.
+
+SSH always verifies configured host keys and disables forwarding/config command
+hooks. Endpoint logs are bounded and redacted before persistence; artifacts and
+metadata are not generally confidential or authenticated provenance. Vault master
+passwords stay local, but a supplied secret is accessible to its authorized job
+and the remote administrator. Transformed secrets can evade literal masking.
+Unknown outcomes are reconciled by ID and never automatically resubmitted.
+
+See docs/CLOUD_COMPUTE.md for limits and docs/COMPUTE_VALIDATION.md for evidence.
+Repository branch protection, account MFA and private reporting settings are
+owner-controlled and are not enabled merely by this code update.

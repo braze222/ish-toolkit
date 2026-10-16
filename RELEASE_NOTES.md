@@ -1,3 +1,22 @@
+# 3.0.0-preview — explicit compute control plane
+
+- Adds private versioned config, strict job validation, explainable backend
+  selection, durable job intent/receipts, safe status reconciliation and cancellation.
+- Real local and verified SSH execution with bounded redacted logs, private input
+  workspaces and constrained artifact retrieval; no implicit shell or resubmission.
+- Google/AWS/Azure console discovery, official URLs, diagnostics and reviewed
+  user-space bootstrap; no fabricated unattended Cloud Shell API or resource creation.
+- GitHub Actions REST adapter for the bundled reviewed workflow, immutable source
+  checks, minimal token permissions, safe downloads and explicit unknown-cost grant.
+- Restrictive Docker-over-SSH invocation on an already working engine/image.
+- Original vault/TOTP/crypt/backup/database formats and commands are preserved.
+- New compute guide and explicit validation/remaining-limits record.
+
+This preview is not independently audited. Loopback SSH was tested; live cloud
+account dispatch, real Docker and the new runtime on iSH still need validation.
+
+---
+
 # 2.1.1-local security-maintenance update
 
 Validation: 120 local tests passed; resolved runtime/development dependency

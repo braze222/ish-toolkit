@@ -1,3 +1,8 @@
+> Version note: this handbook documents the 2.1 offline security tools, which
+> remain supported. For the 3.0 preview, use [the compute guide](docs/CLOUD_COMPUTE.md)
+> and [current upgrade instructions](UPGRADE.md). The older PDF has not been
+> rewritten to claim coverage of the new remote-execution features.
+
 # iSH Toolkit
 ## The complete local operations guide
 Version 2.1.0-local | 16 October 2026

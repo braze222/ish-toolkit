@@ -56,3 +56,5 @@ htmlcov/
 .ish-toolkit/
 *.ishbackup
 *.tar.gz
+.cloud-venv/
+ish-result.json

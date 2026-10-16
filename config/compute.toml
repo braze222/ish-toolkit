@@ -1,3 +1,5 @@
+# Historical sample, not loaded by the 3.0 control plane.
+# Use ish init / ish config; private state is ~/.ish-toolkit/compute/config.json.
 [default]
 backend = "local"
 

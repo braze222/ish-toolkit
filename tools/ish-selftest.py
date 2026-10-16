@@ -52,6 +52,18 @@ def main(argv=None):
             shutil.rmtree(backups.root() / snapshot['id'])
             transfer.import_bundle(bundle)
             print('PASS: workspace, SQLite policy, backup export/import and restore', flush=True)
+            from lib.orchestration import engine
+            job = engine.submit({'command': [sys.executable, '-c',
+                'from pathlib import Path; print("compute-selftest"); Path("result.txt").write_text("expected")'],
+                'backend': 'local', 'timeout': 30, 'outputs': ['result.txt']}, execute=True)
+            if job['state'] != 'completed':
+                raise RuntimeError('local compute execution failed or unknown')
+            if 'compute-selftest' not in engine.logs(job['id'])['text']:
+                raise RuntimeError('compute log retrieval failed')
+            engine.artifacts(job['id'], base / 'compute-result')
+            if (base / 'compute-result/result.txt').read_text() != 'expected':
+                raise RuntimeError('compute artifact round trip failed')
+            print('PASS: isolated local compute job, logs and artifact retrieval (no remote accounts used)', flush=True)
             if args.full:
                 print('Testing vault encryption and transactional rotation (may take time on iSH)...', flush=True)
                 vault = VaultStore()

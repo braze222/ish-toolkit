@@ -509,6 +509,10 @@ def main():
     audit_toolkit()
     audit_vault()
     audit_hashes()
+    section("COMPUTE CONTROL PLANE")
+    print("Run ish compute doctor for offline provider/config checks.")
+    print("Run ish hosts test NAME only for an explicitly authorized endpoint probe.")
+    print("Cloud consoles are interactive; no resource creation is performed.")
 
     section("SUMMARY")
 

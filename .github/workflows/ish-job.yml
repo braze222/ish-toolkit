@@ -1,0 +1,51 @@
+name: iSH reviewed job
+run-name: ish-${{ inputs.ish_job_id }}
+on:
+  workflow_dispatch:
+    inputs:
+      ish_job_id:
+        description: Unique local job ID
+        required: true
+        type: string
+      reviewed_sha:
+        description: Reviewed source commit
+        required: true
+        type: string
+      task:
+        description: Reviewed task
+        required: true
+        type: choice
+        options: [smoke, test]
+      timeout_minutes:
+        description: Timeout in minutes (1-60)
+        required: true
+        default: '5'
+        type: string
+permissions:
+  contents: read
+jobs:
+  execute:
+    if: github.sha == inputs.reviewed_sha
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ fromJSON(inputs.timeout_minutes) }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.reviewed_sha }}
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - name: Validate inputs and perform reviewed task
+        env:
+          ISH_JOB_ID: ${{ inputs.ish_job_id }}
+          ISH_TASK: ${{ inputs.task }}
+          ISH_TIMEOUT: ${{ inputs.timeout_minutes }}
+        run: python scripts/actions-job.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ish-result
+          path: ish-result.json
+          retention-days: 1
+          if-no-files-found: error
