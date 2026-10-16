@@ -105,10 +105,15 @@ def main(argv=None):
             path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
             os.close(fd)
-            with SQLiteDB(path, DBPolicy(False, True)) as db:
-                # Ensure an empty database has a real SQLite header.
-                db.conn.set_authorizer(None)
-                db.conn.execute('PRAGMA user_version=0')
+            # Fixed initialization statement on the exclusively created empty file.
+            # set_authorizer(None) is not supported on Python 3.10. Normal query
+            # connections continue to enforce their authorizer unchanged.
+            connection = sqlite3.connect(path)
+            try:
+                connection.execute('PRAGMA user_version=0')
+                connection.commit()
+            finally:
+                connection.close()
             print('Database initialized')
         else:
             policy = DBPolicy(False, True) if args.command == 'query' and args.write else DBPolicy()

@@ -146,4 +146,4 @@ def test_cli_workspace_backup_flow(tmp_path):
     assert call('backup','restore',identifier,'--to',tmp_path/'restored.db').returncode==0
     assert call('backup','restore',identifier,'--to',tmp_path/'restored.db').returncode==1
     assert call('workspace','open','example').returncode==0
-    assert call('--version').stdout.strip()=='ish-toolkit 2.1.0-local'
+    assert call('--version').stdout.strip()=='ish-toolkit 2.1.1-local'

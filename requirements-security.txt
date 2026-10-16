@@ -1,0 +1,2 @@
+# Development/CI only; not installed on the user's iSH device.
+pip-audit==2.10.1

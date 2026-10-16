@@ -1,3 +1,18 @@
+# 2.1.1-local security-maintenance update
+
+Validation: 120 local tests passed; resolved runtime/development dependency
+audits reported no known vulnerabilities. See docs/SECURITY_CHECKS.md for scope.
+
+- Fixed database initialization on Python 3.10 without disabling normal query policy.
+- Private-key creation now uses a stable lock, private staging and exclusive
+  publication; rejects symlink/orphan public-key paths and preserves existing
+  private identity. A missing public companion can be repaired from that key.
+- Added security policy, threat model, safe practice guide, maintainer settings
+  checklist, MIT license, dependency audit workflow, update proposals, and a
+  limited history/current-file secret-pattern check.
+- No claim of an independent audit, full secret detection or automatic device
+  protection. GitHub account/security settings require owner action.
+
 # 2.1.0-local | 16 October 2026
 
 Implemented portable backup export/import, guided transactional vault recovery,

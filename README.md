@@ -1,4 +1,11 @@
-# iSH Toolkit 2.1.0-local
+# iSH Toolkit 2.1.1-local
+
+**Early release, not independently security-audited.** Start with the
+[Safe learning guide](docs/SAFE_START.md), use dummy data, and keep independent
+recovery copies. Read [SECURITY.md](SECURITY.md) before storing important secrets.
+
+[![Toolkit tests](https://github.com/braze222/ish-toolkit/actions/workflows/python-package.yml/badge.svg)](https://github.com/braze222/ish-toolkit/actions/workflows/python-package.yml)
+[![Security baseline](https://github.com/braze222/ish-toolkit/actions/workflows/security.yml/badge.svg)](https://github.com/braze222/ish-toolkit/actions/workflows/security.yml)
 
 An offline command-line toolkit for encrypted secrets and TOTP, local SQLite
 workspaces, file encryption, and verified portable backups. Built for the
@@ -32,7 +39,7 @@ Keep the source folder in place because launchers refer to it.
 - [Upgrade and recovery instructions](UPGRADE.md)
 - [Release notes](RELEASE_NOTES.md)
 
-This repository now contains the 2.1.0-local implementation described by the
+This repository now contains the 2.1.1-local implementation described by the
 handbook. The packaged archive instructions in the book are an alternative to
 cloning the repository.
 
@@ -110,3 +117,11 @@ Build-host tests include separate-process interruption recovery, streaming
 corruption/truncation rejection, protected keys, legacy ciphertext, portable
 bundles, no-clobber behavior and installer/CLI workflows. On-device 2.1 validation
 is still required. The previous 2.0 full self-test passed on the user's iSH device.
+
+## Security maintenance
+
+See [the threat model](docs/THREAT_MODEL.md) and
+[owner security settings checklist](docs/MAINTAINER_SECURITY.md).
+The MIT license previously declared by this repository is now included in
+[LICENSE](LICENSE). The 2.1 booklet remains applicable; 2.1.1 adds key-creation
+hardening, a Python 3.10 initialization fix and security-maintenance guidance.

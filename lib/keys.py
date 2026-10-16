@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
-from .storage import regular_file, private_dir, lock, sync_dir, StorageError
+from .storage import regular_file, private_dir, lock, sync_dir, StorageError, publish_new
 
 
 def load(path=None, password=None):
@@ -51,3 +51,36 @@ def protect(new_password, old_password=None, path=None):
         finally:
             staged.unlink(missing_ok=True)
     return {'protected': True, 'key_identity': 'unchanged', 'path': str(path)}
+
+
+def create(directory=None):
+    """Create once under a stable lock; never follow or overwrite key paths."""
+    directory = private_dir(directory or Path.home() / '.crypt')
+    private, public = directory / 'id.key', directory / 'id.pub'
+    with lock(directory / '.key.lock'):
+        for path in (private, public):
+            if path.is_symlink(): raise StorageError('key paths cannot be symlinks')
+            if path.exists(): regular_file(path)
+        if private.exists():
+            # Repair only a missing public companion, preserving private identity.
+            if not public.exists():
+                key = load(private)
+                with tempfile.TemporaryDirectory(prefix='.key-create-', dir=directory) as folder:
+                    staged = Path(folder) / 'public'
+                    staged.write_bytes(key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw))
+                    staged.chmod(0o600)
+                    publish_new(staged, public)
+            return False
+        if public.exists(): raise StorageError('public key exists without private key; preserve it and investigate')
+        key = X25519PrivateKey.generate()
+        with tempfile.TemporaryDirectory(prefix='.key-create-', dir=directory) as folder:
+            staged_private, staged_public = Path(folder)/'private', Path(folder)/'public'
+            for path, data in (
+                (staged_private, key.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption())),
+                (staged_public, key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw))):
+                fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, 'wb') as handle:
+                    handle.write(data); handle.flush(); os.fsync(handle.fileno())
+            publish_new(staged_private, private)
+            publish_new(staged_public, public)
+        return True

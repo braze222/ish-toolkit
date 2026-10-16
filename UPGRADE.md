@@ -84,3 +84,12 @@ changing the existing entry. Vault recovery refuses retained legacy-format
 files; preserve or migrate those before attempting activation.
 
 See BOOKLET.md / the PDF for detailed workflows, validation and troubleshooting.
+
+## 2.1.1 repository maintenance update
+
+The current repository reports 2.1.1-local. It preserves the v2 vault and
+CRYPTv2 formats, hardens creation of crypt keys and fixes Python 3.10 database
+initialization. Reinstall launchers from your updated source checkout and run
+`ish selftest --full` before live use. No vault reinitialization or migration is
+needed for an existing v2 vault. The earlier 2.1 archive/PDF remains unchanged;
+clone the repository into a separate folder for this maintenance version.

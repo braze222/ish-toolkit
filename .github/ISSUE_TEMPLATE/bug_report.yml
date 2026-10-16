@@ -1,0 +1,22 @@
+name: Bug report using dummy data
+description: Report a non-security issue without credentials or personal data.
+body:
+  - type: markdown
+    attributes:
+      value: "Do not post passwords, private keys, TOTP seeds, real vaults or exploit details. For vulnerabilities follow SECURITY.md."
+  - type: input
+    id: version
+    attributes:
+      label: Toolkit version and platform
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps using dummy data
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual result (redacted)

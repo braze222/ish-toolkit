@@ -16,7 +16,7 @@ def main():
         print('Core: offline security utilities and local SQLite. Compute: existing status checks only.')
         return 0
     if sys.argv[1] == '--version':
-        print('ish-toolkit 2.1.0-local')
+        print('ish-toolkit 2.1.1-local')
         return 0
     script = COMMANDS.get(sys.argv[1])
     if script is None:

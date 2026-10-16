@@ -20,19 +20,8 @@ MAGIC = b"CRYPTv1\x00"
 def ensure(): KDIR.mkdir(mode=0o700, exist_ok=True)
 
 def keygen():
-    ensure()
-    if PRIV.exists(): print("exists"); return
-    p = X25519PrivateKey.generate()
-    PRIV.write_bytes(p.private_bytes(
-        encoding=serialization.Encoding.Raw,
-        format=serialization.PrivateFormat.Raw,
-        encryption_algorithm=serialization.NoEncryption()))
-    PRIV.chmod(0o600)
-    PUB.write_bytes(p.public_key().public_bytes(
-        encoding=serialization.Encoding.Raw,
-        format=serialization.PublicFormat.Raw))
-    PUB.chmod(0o644)
-    print("keypair generated")
+    created = keys.create(KDIR)
+    print('keypair generated; run ish crypt protect-key to add a password' if created else 'exists; private key preserved')
 
 def lpriv():
     if not PRIV.exists(): print("run: crypt keygen"); sys.exit(1)

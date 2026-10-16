@@ -1,0 +1,33 @@
+name: Security baseline
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Check tracked files for common secret patterns
+        run: python scripts/check_secrets.py
+      - name: Check reachable history for common secret patterns
+        run: python scripts/check_secrets.py --history
+      - name: Install dependency auditor
+        run: python -m pip install -r requirements-security.txt
+      - name: Audit resolved runtime dependencies
+        run: python -m pip_audit -r requirements.txt
+      - name: Audit resolved development dependencies
+        run: python -m pip_audit -r requirements-dev.txt
