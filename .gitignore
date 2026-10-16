@@ -3,3 +3,56 @@ __pycache__/
 .vault/
 .crypt/
 *.crypt
+
+# Local development backups
+*.bak
+*.backup
+*.before-*
+
+# Secrets / credentials
+.env
+.env.*
+*.secret
+*.token
+*.key
+*.pem
+
+# SSH
+.ssh/
+ssh/
+id_rsa
+id_ed25519
+id_ecdsa
+
+# Vault
+.vault/
+*.vault
+vault.db
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local configuration
+config/local.toml
+config/*.local.toml
+
+# Runtime state
+jobs/*/logs/
+jobs/*/artifacts/
+workspaces/*/.cache/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
+
+# Tests, builds and local backup state
+.pytest_cache/
+.coverage
+htmlcov/
+.ish-toolkit/
+*.ishbackup
+*.tar.gz

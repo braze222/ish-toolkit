@@ -1,0 +1,17 @@
+[default]
+backend = "local"
+
+[local]
+enabled = true
+
+[docker]
+enabled = false
+
+[remote]
+enabled = false
+
+[colab]
+enabled = false
+
+[jupyter]
+enabled = false

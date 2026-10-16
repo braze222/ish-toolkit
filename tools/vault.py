@@ -1,93 +1,122 @@
 #!/usr/bin/env python3
-import os, sys, sqlite3, getpass
+"""Interactive v2 vault commands. Passwords are never CLI arguments."""
+import argparse
+from functools import wraps
+import getpass
+import json
 from pathlib import Path
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from argon2.low_level import hash_secret_raw, Type
+import sqlite3
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from lib.vault_store import VaultStore, VaultError, derive
+from lib.storage import StorageError
 
-VDIR = Path.home() / ".vault"
-VDB  = VDIR / "vault.db"
-SALT = VDIR / "salt"
-VER  = VDIR / "verify"
+VDIR = Path.home() / '.vault'
 
-def ensure(): VDIR.mkdir(mode=0o700, exist_ok=True)
-def derive(pw, s):
-    return hash_secret_raw(secret=pw.encode(), salt=s,
-        time_cost=3, memory_cost=65536, parallelism=1,
-        hash_len=32, type=Type.ID)
 
+def command(fn):
+    @wraps(fn)
+    def wrapped(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except (VaultError, StorageError) as exc:
+            print(f'vault: {exc}', file=sys.stderr)
+            raise SystemExit(1)
+        except (sqlite3.Error, OSError, UnicodeError):
+            print('vault: storage operation failed; preserve the files and inspect permissions/integrity', file=sys.stderr)
+            raise SystemExit(1)
+    return wrapped
+
+
+def password(prompt='Master password: '):
+    return getpass.getpass(prompt)
+
+
+@command
 def init():
-    ensure()
-    if SALT.exists(): print("already initialized"); return
-    p1 = getpass.getpass("Master password: ")
-    p2 = getpass.getpass("Confirm: ")
-    if p1 != p2: print("mismatch"); sys.exit(1)
-    if len(p1) < 8: print("need 8+ chars"); sys.exit(1)
-    salt = os.urandom(16)
-    SALT.write_bytes(salt); SALT.chmod(0o600)
-    key = derive(p1, salt)
-    n = os.urandom(12)
-    ct = AESGCM(key).encrypt(n, b"verify", None)
-    VER.write_bytes(n + ct); VER.chmod(0o600)
-    c = sqlite3.connect(VDB)
-    c.execute("CREATE TABLE IF NOT EXISTS secrets (key TEXT PRIMARY KEY, blob BLOB)")
-    c.commit(); c.close()
-    VDB.chmod(0o600)
-    print("vault initialized")
+    first = password()
+    if first != password('Confirm: '):
+        raise VaultError('password confirmation does not match')
+    VaultStore(VDIR).initialize(first)
+    print('vault v2 initialized')
 
-def unlock():
-    if not SALT.exists(): print("run: vault init"); sys.exit(1)
-    p = getpass.getpass("Master password: ")
-    k = derive(p, SALT.read_bytes())
-    b = VER.read_bytes()
-    try: AESGCM(k).decrypt(b[:12], b[12:], None)
-    except: print("wrong password"); sys.exit(1)
-    return k
 
-def set_s(n):
-    k = unlock()
-    v = getpass.getpass(f"Value for {n}: ")
-    nonce = os.urandom(12)
-    ct = AESGCM(k).encrypt(nonce, v.encode(), n.encode())
-    c = sqlite3.connect(VDB)
-    c.execute("INSERT OR REPLACE INTO secrets VALUES (?, ?)", (n, nonce + ct))
-    c.commit(); c.close()
-    print(f"stored: {n}")
+@command
+def migrate():
+    counts = VaultStore(VDIR).migrate(password('Current legacy master password: '))
+    print('Migration verified. v2 is now active; original legacy files were retained.')
+    print(json.dumps(counts, sort_keys=True))
+    print('Use only the v2 vault/TOTP commands from now on; old clients use the old copy.')
 
-def get_s(n):
-    k = unlock()
-    c = sqlite3.connect(VDB)
-    r = c.execute("SELECT blob FROM secrets WHERE key=?", (n,)).fetchone()
-    c.close()
-    if not r: print("not found"); sys.exit(1)
-    b = r[0]
-    print(AESGCM(k).decrypt(b[:12], b[12:], n.encode()).decode())
 
+@command
+def set_s(name):
+    pw = password()
+    value = getpass.getpass(f'Value for {name}: ')
+    VaultStore(VDIR).put(name, value, pw)
+    print(f'stored: {name}')
+
+
+@command
+def get_s(name):
+    print(VaultStore(VDIR).get(name, password()))
+
+
+@command
 def ls():
-    if not VDB.exists(): print("no vault"); sys.exit(1)
-    c = sqlite3.connect(VDB)
-    r = c.execute("SELECT key FROM secrets ORDER BY key").fetchall()
-    c.close()
-    if not r: print("(empty)"); return
-    for (k,) in r: print(k)
+    names = VaultStore(VDIR).names()
+    print('\n'.join(names) if names else '(empty)')
 
-def rm(n):
-    unlock()
-    c = sqlite3.connect(VDB)
-    c.execute("DELETE FROM secrets WHERE key=?", (n,))
-    c.commit(); c.close()
-    print(f"deleted: {n}")
 
-def usage():
-    print("vault init | set <n> | get <n> | list | delete <n>")
+@command
+def rm(name):
+    VaultStore(VDIR).delete(name, password())
+    print(f'deleted: {name}')
 
-def main():
-    if len(sys.argv) < 2: usage(); return
-    c = sys.argv[1]
-    if c == "init": init()
-    elif c == "set" and len(sys.argv) == 3: set_s(sys.argv[2])
-    elif c == "get" and len(sys.argv) == 3: get_s(sys.argv[2])
-    elif c == "list": ls()
-    elif c == "delete" and len(sys.argv) == 3: rm(sys.argv[2])
-    else: usage()
 
-if __name__ == "__main__": main()
+@command
+def passwd():
+    old = password('Current master password: ')
+    new = password('New master password: ')
+    if new != password('Confirm new password: '):
+        raise VaultError('password confirmation does not match')
+    VaultStore(VDIR).rotate(old, new)
+    print('Master password changed in one SQLite transaction.')
+
+
+@command
+def check():
+    print(json.dumps(VaultStore(VDIR).check(), sort_keys=True))
+    print('Structure checked. Use ish vault verify to authenticate every record.')
+    return 0
+
+
+@command
+def verify():
+    print(json.dumps(VaultStore(VDIR).check(password()), sort_keys=True))
+    print('PASS: password and every encrypted record verified')
+    return 0
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--directory', type=Path, help='Use a separate vault directory, for example a restored copy')
+    sub = parser.add_subparsers(dest='command', required=True)
+    for name in ('init', 'migrate', 'list', 'passwd', 'check', 'verify'):
+        sub.add_parser(name)
+    for name in ('set', 'get', 'delete'):
+        sub.add_parser(name).add_argument('name')
+    args = parser.parse_args(argv)
+    if args.directory is not None:
+        global VDIR
+        VDIR = args.directory.expanduser().absolute()
+    if args.command == 'set': return set_s(args.name)
+    if args.command == 'get': return get_s(args.name)
+    if args.command == 'delete': return rm(args.name)
+    return {'init': init, 'migrate': migrate, 'list': ls, 'passwd': passwd,
+            'check': check, 'verify': verify}[args.command]()
+
+
+if __name__ == '__main__':
+    try: raise SystemExit(main())
+    except (KeyboardInterrupt, EOFError): raise SystemExit(130)

@@ -1,0 +1,6 @@
+# Reserved example only; this file is NOT loaded in the local SQLite release.
+# Defaults are enforced in lib/db_policy.py and tools/ish-db.py.
+# Do not store credentials here.
+[defaults]
+read_only = true
+allow_destructive = false

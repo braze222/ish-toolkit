@@ -1,41 +1,112 @@
-# ish-toolkit
+# iSH Toolkit 2.1.0-local
 
-Bootstrap iSH (Alpine Linux on iOS) for real development.
+An offline command-line toolkit for encrypted secrets and TOTP, local SQLite
+workspaces, file encryption, and verified portable backups. Built for the
+user's iSH/Alpine workflow. No remote database, autonomous agent, paid service,
+background scheduling or new compute execution backend is included.
 
-## Problems solved
+## Install from this repository
 
-- Frozen Alpine repos from 2023
-- pip install cryptography fails (Rust toolchain missing for i386-musl)
-- PEP 668 externally-managed-environment errors
-- Node.js 20.15+ crashes with SIGILL on iSH
+Clone the complete source; the installer no longer bootstraps the OS or downloads
+scripts. On your working iSH installation, reuse `/root/venv/bin/python`:
 
-## Install
+```sh
+git clone https://github.com/braze222/ish-toolkit.git ~/ish-toolkit-v2.1
+cd ~/ish-toolkit-v2.1
+ISH_PYTHON=/root/venv/bin/python sh install.sh
+export PATH="$HOME/.local/bin:$PATH"
+hash -r
+ish --version
+ish selftest --full
+```
 
-    curl -fsSL https://raw.githubusercontent.com/braze222/ish-toolkit/main/install.sh | sh
+Use a new clone destination if that folder already exists. Python 3.10+ is
+required. For fresh iSH dependencies see [Python setup](docs/python.md). On a
+conventional Linux host, create a venv and install `requirements.txt` first.
+Keep the source folder in place because launchers refer to it.
 
-Then:
+## Handbook
 
-    bash
-    source /root/venv/bin/activate
+- [Download the 24-page PDF](docs/iSH-Toolkit-v2.1-Complete-Guide.pdf)
+- [Read the full handbook](BOOKLET.md)
+- [Upgrade and recovery instructions](UPGRADE.md)
+- [Release notes](RELEASE_NOTES.md)
 
-## What you get
+This repository now contains the 2.1.0-local implementation described by the
+handbook. The packaged archive instructions in the book are an alternative to
+cloning the repository.
 
-- Python 3.12 with cryptography, argon2-cffi, pyotp
-- Build toolchain (gcc, cmake, make)
-- Git, SSH, curl, wget
-- Four security tools:
-  - vault - encrypted secrets manager
-  - totp  - offline 2FA codes
-  - crypt - file encryption (X25519 + ChaCha20-Poly1305)
-  - shred - secure file deletion
+## Upgrade an installed v2 vault
 
-## License
+Read UPGRADE.md. Install this source in its own `~/ish-toolkit-v2.1` folder,
+then run `ish --version`, `ish selftest --full`, and `ish vault verify`.
+Do not reinitialize or migrate an already working v2 vault.
+Keep the source folder: launchers refer to it.
 
-MIT
+## Added in 2.1
 
-## Toolkit v2.1 handbook
+- `ish backup export ID --to FILE.ishbackup` verifies and exports a portable bundle.
+- `ish backup import FILE.ishbackup` validates safe members, checksums, SQLite
+  integrity and vault authentication before adding a new catalogue entry.
+- `ish backup recover-vault ID [--preview]` activates a snapshot after explicit
+  typed confirmation and password verification, preserving the previous vault.
+  Existing vault replacement is one SQLite transaction using the existing lock.
+- `ish crypt protect-key` wraps the existing X25519 private key in encrypted
+  PKCS8. Identity is unchanged; existing ciphertext remains decryptable. Re-run
+  to change the crypt-key password. Minimum new password: 12 characters.
+- New file and backup encryption uses streaming CRYPTv2 AES-256-GCM with X25519
+  key agreement and HKDF-SHA256. Reads CRYPTv1 up to the old backup limit of
+  32 MiB. New streams support up to 60 GiB of plaintext, subject to free disk
+  space and practical iSH performance. Working buffers are about 1 MiB each.
+- Historical `.bak`, `.before-*`, `.broken-*` and `.pre-release` source copies
+  are omitted from this release, without deleting anything from older installs.
 
-- [Download the complete PDF guide](docs/iSH-Toolkit-v2.1-Complete-Guide.pdf)
-- [Read the guide on GitHub](docs/BOOKLET-v2.1.md)
+## Start here
 
-The handbook documents the separately packaged **2.1.0-local** release. This documentation update does not upgrade the older toolkit code in this repository. Follow the handbook's version-specific installation instructions; existing v2 vaults do not need reinitialization or migration.
+```sh
+ish --help
+ish selftest --full
+ish db doctor
+ish vault verify
+ish workspace create notes
+ish db tables @notes
+ish backup create @notes
+ish backup list
+```
+
+See BOOKLET.md and the accompanying PDF for a complete guide and worked examples.
+Use `ish backup --help`, `ish workspace --help`, `ish db --help` and
+`ish vault --help` for exact syntax. Crypt and TOTP print usage with `--help`.
+
+## Important behavior
+
+- Installs do not migrate vaults, protect keys or replace data automatically.
+- Ordinary databases remain plaintext; read-only SQL is the default.
+- Backup restore/export refuse existing destinations. Import refuses duplicate IDs.
+- Recovery replaces vault contents; it does not merge entries. The snapshot's
+  master password becomes the active password. The retained previous vault still
+  uses its previous password and can be inspected with `--directory`.
+- Protected crypt keys require their password for encryption/decryption commands.
+  Some backup workflows prompt more than once. The key password and vault password
+  are independent. Back up the protected `.crypt/id.key` separately.
+- Export bundles contain names, source paths and checksums in an unsigned manifest.
+  The payload is encrypted only if the original backup was encrypted. Checksums
+  alone do not prove who created an unencrypted snapshot.
+- Decryption publishes plaintext only after final authentication. Temporary
+  plaintext can exist in private staging while processing. Hard termination may
+  leave private staging files; no forensic erasure guarantee is made.
+- Recovery and key changes are intended for one local user. Stop legacy clients
+  before migration or recovery; they do not respect the new vault lock.
+
+## Development validation
+
+```sh
+python -m pip install -r requirements-dev.txt
+python -m pytest -q tests
+python tools/ish.py selftest --full
+```
+
+Build-host tests include separate-process interruption recovery, streaming
+corruption/truncation rejection, protected keys, legacy ciphertext, portable
+bundles, no-clobber behavior and installer/CLI workflows. On-device 2.1 validation
+is still required. The previous 2.0 full self-test passed on the user's iSH device.

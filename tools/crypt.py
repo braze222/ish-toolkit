@@ -7,6 +7,11 @@ from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from lib import keys, backup_crypto
+from lib.storage import StorageError
+import getpass
+
 KDIR = Path.home() / ".crypt"
 PRIV = KDIR / "id.key"
 PUB  = KDIR / "id.pub"
@@ -31,7 +36,7 @@ def keygen():
 
 def lpriv():
     if not PRIV.exists(): print("run: crypt keygen"); sys.exit(1)
-    return X25519PrivateKey.from_private_bytes(PRIV.read_bytes())
+    return keys.load(PRIV)
 
 def lpub(p):
     return X25519PublicKey.from_public_bytes(Path(p).read_bytes())
@@ -44,64 +49,49 @@ def enc(inp, out=None, recip=None):
     inp = Path(inp)
     if not inp.exists(): print("no file"); sys.exit(1)
     out = Path(out) if out else Path(str(inp) + ".crypt")
-    tgt = lpub(recip) if recip else lpriv().public_key()
-    e = X25519PrivateKey.generate()
-    shared = e.exchange(tgt)
-    salt = os.urandom(16)
-    key = derive(shared, salt)
-    nonce = os.urandom(12)
-    ep = e.public_key().public_bytes(
-        encoding=serialization.Encoding.Raw,
-        format=serialization.PublicFormat.Raw)
-    data = inp.read_bytes()
-    ct = ChaCha20Poly1305(key).encrypt(nonce, data, None)
-    out.write_bytes(MAGIC + salt + ep + nonce + ct)
-    out.chmod(0o600)
+    backup_crypto.encrypt_file(inp, out, lpub(recip) if recip else lpriv().public_key())
     print(f"enc: {inp} -> {out}")
 
 def dec(inp, out=None):
     inp = Path(inp)
-    if not inp.exists(): print("no file"); sys.exit(1)
-    if out: out = Path(out)
-    else:
-        s = str(inp)
-        out = Path(s[:-6] if s.endswith(".crypt") else s + ".dec")
-    blob = inp.read_bytes()
-    if not blob.startswith(MAGIC): print("not crypt format"); sys.exit(1)
-    o = len(MAGIC)
-    salt = blob[o:o+16]; o += 16
-    ep = blob[o:o+32]; o += 32
-    nonce = blob[o:o+12]; o += 12
-    ct = blob[o:]
-    shared = lpriv().exchange(X25519PublicKey.from_public_bytes(ep))
-    key = derive(shared, salt)
+    out = Path(out) if out else Path(str(inp)[:-6] if str(inp).endswith('.crypt') else str(inp) + '.dec')
     try:
-        pt = ChaCha20Poly1305(key).decrypt(nonce, ct, None)
-    except: print("decrypt failed"); sys.exit(1)
-    out.write_bytes(pt)
+        backup_crypto.decrypt_file(inp, out, lpriv())
+    except StorageError as exc:
+        print(str(exc)); raise SystemExit(1)
     print(f"dec: {inp} -> {out}")
+
 
 def encdir(inp):
     inp = Path(inp)
     if not inp.is_dir(): print("not a dir"); sys.exit(1)
-    tmp = Path(tempfile.mktemp(suffix=".tar"))
-    with tarfile.open(tmp, "w") as t:
-        t.add(inp, arcname=inp.name)
-    enc(tmp, Path(str(inp) + ".tar.crypt"))
-    tmp.unlink()
+    with tempfile.TemporaryDirectory(prefix="ish-crypt-") as directory:
+        tmp = Path(directory) / "input.tar"
+        with tarfile.open(tmp, "w") as t:
+            t.add(inp, arcname=inp.name)
+        enc(tmp, Path(str(inp) + ".tar.crypt"))
 
 def usage():
-    print("crypt keygen | pubkey | encrypt <f> | encrypt -r <pub> <f> | encrypt-dir <d> | decrypt <f>")
+    print("crypt keygen | protect-key | key-status | pubkey | encrypt <f> | encrypt -r <pub> <f> | encrypt-dir <d> | decrypt <f>")
 
 def main():
     if len(sys.argv) < 2: usage(); return
     c = sys.argv[1]
     if c == "keygen": keygen()
+    elif c == "protect-key":
+        first = getpass.getpass('New crypt key password (12+ characters): ')
+        if first != getpass.getpass('Confirm new key password: '):
+            raise StorageError('password confirmation does not match')
+        keys.protect(first, path=PRIV)
+        print('Key protected; key identity unchanged. Back up the protected id.key file.')
+    elif c == "key-status":
+        data = PRIV.read_bytes()
+        print('password-protected' if data.startswith(b'-----BEGIN ENCRYPTED PRIVATE KEY-----') else 'legacy raw key' if len(data) == 32 else 'unknown key format')
     elif c == "pubkey":
         if not PUB.exists(): print("no key"); sys.exit(1)
         print(PUB.read_bytes().hex())
     elif c == "encrypt":
-        if len(sys.argv) >= 4 and sys.argv[2] == "-r":
+        if len(sys.argv) == 5 and sys.argv[2] == "-r":
             enc(sys.argv[4], None, sys.argv[3])
         elif len(sys.argv) == 3: enc(sys.argv[2])
         elif len(sys.argv) == 4: enc(sys.argv[2], sys.argv[3])
@@ -111,4 +101,8 @@ def main():
         dec(sys.argv[2], sys.argv[3] if len(sys.argv) == 4 else None)
     else: usage()
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    try: main()
+    except (StorageError, OSError) as exc:
+        print(f'crypt: {exc}', file=sys.stderr); raise SystemExit(1)
+    except (KeyboardInterrupt, EOFError): raise SystemExit(130)
