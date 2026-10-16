@@ -32,3 +32,10 @@ Then:
 ## License
 
 MIT
+
+## Toolkit v2.1 handbook
+
+- [Download the complete PDF guide](docs/iSH-Toolkit-v2.1-Complete-Guide.pdf)
+- [Read the guide on GitHub](docs/BOOKLET-v2.1.md)
+
+The handbook documents the separately packaged **2.1.0-local** release. This documentation update does not upgrade the older toolkit code in this repository. Follow the handbook's version-specific installation instructions; existing v2 vaults do not need reinitialization or migration.
