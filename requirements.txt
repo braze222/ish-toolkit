@@ -1,4 +1,4 @@
 # Runtime dependencies; use Alpine packages on iSH where available.
 cryptography>=41
-argon2-cffi>=23.1
+argon2-cffi>=25.1.0
 pyotp>=2.9
