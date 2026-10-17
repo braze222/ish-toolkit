@@ -212,6 +212,14 @@ def refresh(job_id, action='status'):
 
 
 def zip_files(data):
+    """Reject malformed provider archives without echoing their diagnostics."""
+    try:
+        return _zip_files(data)
+    except (zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError, EOFError, OSError, ValueError):
+        raise ComputeError('invalid or unsupported artifact archive; no files published') from None
+
+
+def _zip_files(data):
     files = {}; total = 0
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
         if len(archive.infolist()) > 128:
@@ -220,14 +228,19 @@ def zip_files(data):
             if entry.is_dir():
                 continue
             model.relative(entry.filename)
+            if entry.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED):
+                raise ComputeError('unsupported archive compression; only stored/deflate members are accepted')
             mode = entry.external_attr >> 16
             if stat.S_ISLNK(mode) or (stat.S_IFMT(mode) not in (0, stat.S_IFREG)) or entry.filename in files or entry.flag_bits & 1:
                 raise ComputeError('unsafe archive member')
             total += entry.file_size
             if total > ARTIFACT_LIMIT:
                 raise ComputeError('expanded archive exceeds 8 MiB')
-            with archive.open(entry) as f:
-                value = f.read(ARTIFACT_LIMIT + 1)
+            try:
+                with archive.open(entry) as f:
+                    value = f.read(ARTIFACT_LIMIT + 1)
+            except Exception:
+                raise ComputeError('archive member could not be decoded; no files published') from None
             if len(value) != entry.file_size:
                 raise ComputeError('invalid archive size')
             files[entry.filename] = value

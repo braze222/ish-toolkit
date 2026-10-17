@@ -1,4 +1,4 @@
-# iSH Toolkit 3.0.1-preview
+# iSH Toolkit 3.0.2-preview
 
 **Early release, not independently security-audited.** Start with the
 [Safe learning guide](docs/SAFE_START.md), use dummy data, and keep independent

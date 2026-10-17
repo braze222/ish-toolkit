@@ -426,3 +426,6 @@ measurements. Recheck periodically and before changing encoded assumptions.
 
 No fixed free-hour, storage allowance or session-lifetime promise is encoded.
 See COMPUTE_VALIDATION.md for the exact test evidence and remaining limits.
+
+Artifact ZIP members must use stored or deflate compression. Other codecs,
+malformed members and CRC failures are rejected before any files are published.

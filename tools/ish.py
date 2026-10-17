@@ -16,7 +16,7 @@ def main():
         print('Compatibility: ish compatibility. Compute: status | init | config | cloud | hosts | run | jobs. Run plans by default; see docs/CLOUD_COMPUTE.md.')
         return 0
     if sys.argv[1] == '--version':
-        print('ish-toolkit 3.0.1-preview')
+        print('ish-toolkit 3.0.2-preview')
         return 0
     if sys.argv[1] in ('status', 'init', 'config', 'cloud', 'hosts', 'run', 'jobs'):
         try:

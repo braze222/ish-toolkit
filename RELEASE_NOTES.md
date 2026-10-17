@@ -1,3 +1,14 @@
+# 3.0.2-preview — transport and artifact failure handling
+
+- Reap transport children when selector setup fails; normalize post-EOF timeouts.
+- Handle interrupted/nonblocking pipe operations without leaking raw exceptions.
+- Reject non-object GitHub responses and malformed/CRC-invalid artifact archives.
+- Accept only stored/deflate ZIP compression before opening member decoders.
+- Add nine regression cases; 180 tests passed, including loopback SSH.
+
+See [hardening review](docs/HARDENING_REVIEW.md) for scan findings and remaining
+validation limits. This is not a zero-vulnerability certification.
+
 # 3.0.1-preview — older-device compatibility paths
 
 - Add a dependency-light control install and isolated control self-test.

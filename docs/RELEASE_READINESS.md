@@ -1,9 +1,12 @@
-# Release readiness: 3.0.1 preview
+# Release readiness: 3.0.2 preview
 
 Reviewed 2026-10-17 (South Africa). This records known remaining work rather than
 implying that every possible issue has been eliminated.
 
 ## Verified
+
+- Failure-path update: 180 tests passed locally, including loopback SSH. See
+  [hardening review](HARDENING_REVIEW.md) for fixes and static-scan disposition.
 
 - Main includes the original security toolkit, compute preview and compatibility
   update; no vault-format or KDF downgrade was made.
@@ -23,7 +26,8 @@ implying that every possible issue has been eliminated.
 Dependabot PRs 1/2 proposed the Actions upgrades applied in this review. Python
 PRs 3–6 propose raising **minimum allowed versions** of cryptography, pytest,
 pyotp and argon2-cffi. The existing ranges already permit their newer releases;
-pip installs the newest compatible resolution by default. Raising every floor
+a fresh pip environment normally resolves the newest compatible versions. An
+already-installed satisfying version can remain unchanged without an upgrade. Raising every floor
 is not the same as updating an installed iPhone and can exclude Alpine's available
 prebuilt packages. Those floor changes remain deferred for compatibility review;
 they are not silently merged or represented as resolved security findings.

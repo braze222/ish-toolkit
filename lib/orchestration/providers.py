@@ -30,47 +30,69 @@ CONSOLES = {
 
 
 def bounded(command, payload=b'', timeout=30, limit=16*1024*1024, env=None):
-    """Drain both pipes without retaining stderr or unbounded provider output."""
-    p = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                         env=env, start_new_session=True)
-    sel = selectors.SelectSelector()
-    os.set_blocking(p.stdout.fileno(), False); sel.register(p.stdout, selectors.EVENT_READ)
-    os.set_blocking(p.stdin.fileno(), False)
-    if payload:
-        sel.register(p.stdin, selectors.EVENT_WRITE)
-    else:
-        p.stdin.close()
-    output = bytearray(); offset = 0; end = time.monotonic() + timeout
+    """Bound transport output and always reap children, including setup failures."""
+    p = None
+    sel = None
+    end = time.monotonic() + timeout
     try:
+        p = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             stderr=subprocess.DEVNULL, env=env, start_new_session=True)
+        sel = selectors.SelectSelector()
+        os.set_blocking(p.stdout.fileno(), False)
+        sel.register(p.stdout, selectors.EVENT_READ)
+        os.set_blocking(p.stdin.fileno(), False)
+        if payload:
+            sel.register(p.stdin, selectors.EVENT_WRITE)
+        else:
+            p.stdin.close()
+        output = bytearray()
+        offset = 0
         while sel.get_map():
             if time.monotonic() >= end:
                 raise ComputeError('transport timeout; execution may have happened; reconcile, never retry automatically')
-            for key, mask in sel.select(0.1):
+            for key, mask in sel.select(min(0.1, max(0, end-time.monotonic()))):
                 if mask & selectors.EVENT_WRITE:
                     try:
                         offset += os.write(p.stdin.fileno(), payload[offset:offset+65536])
+                    except (BlockingIOError, InterruptedError):
+                        continue
                     except BrokenPipeError:
                         offset = len(payload)
                     if offset == len(payload):
-                        sel.unregister(p.stdin); p.stdin.close()
+                        sel.unregister(p.stdin)
+                        p.stdin.close()
                 else:
-                    data = os.read(p.stdout.fileno(), 65536)
+                    try:
+                        data = os.read(p.stdout.fileno(), 65536)
+                    except (BlockingIOError, InterruptedError):
+                        continue
                     if not data:
                         sel.unregister(p.stdout)
                     else:
                         output.extend(data)
                         if len(output) > limit:
                             raise ComputeError('provider response exceeds limit')
-        code = p.wait(timeout=max(0.1, end-time.monotonic()))
+        code = p.wait(timeout=max(0, end-time.monotonic()))
         if code:
             raise ComputeError('transport failed; check authentication, host fingerprint, executable and connectivity')
         return bytes(output)
+    except subprocess.TimeoutExpired:
+        raise ComputeError('transport timeout; execution may have happened; reconcile, never retry automatically') from None
+    except (OSError, ValueError):
+        raise ComputeError('transport setup or I/O failed; check runtime support; execution state may be unknown') from None
     finally:
-        sel.close()
-        if p.poll() is None:
-            p.kill(); p.wait()
-        for stream in (p.stdin, p.stdout):
-            stream.close()
+        if sel is not None:
+            sel.close()
+        if p is not None:
+            if p.poll() is None:
+                try:
+                    p.kill()
+                except ProcessLookupError:
+                    pass
+                p.wait()
+            for stream in (p.stdin, p.stdout):
+                if stream is not None:
+                    stream.close()
 
 
 def ssh_argv(host):
@@ -171,7 +193,10 @@ class GitHub:
                 raw = response.read(8*1024*1024+1)
                 if len(raw) > 8*1024*1024:
                     raise ComputeError('GitHub response exceeds limit')
-                return json.loads(raw) if raw else {}
+                value = json.loads(raw) if raw else {}
+                if not isinstance(value, dict):
+                    raise ComputeError('GitHub response must be an object; remote state may be unknown')
+                return value
         except urllib.error.HTTPError as exc:
             # No raw error bodies or redirect URLs (which can carry signed credentials).
             detail = 'authentication/permissions' if exc.code in (401,403) else 'request/repository/workflow'

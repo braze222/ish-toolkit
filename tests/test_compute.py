@@ -309,3 +309,67 @@ def test_mock_docker_flags_and_no_implicit_pull(tmp_path, monkeypatch):
     for required in ('--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--user=65534:65534'):
         assert required in argv
     assert '--privileged' not in argv and '-v' not in argv and argv[-3:]==[image,'echo','safe']
+
+
+def test_transport_timeout_after_stdout_closed_is_normalized():
+    started=time.monotonic()
+    with pytest.raises(ComputeError,match='transport'):
+        providers.bounded([sys.executable,'-c','import os,time; os.close(1); time.sleep(30)'],timeout=.2)
+    assert time.monotonic()-started < 3
+
+
+def test_transport_setup_failure_reaps_child(monkeypatch):
+    children=[];original=subprocess.Popen
+    def start(*args,**kwargs):
+        child=original(*args,**kwargs);children.append(child);return child
+    monkeypatch.setattr(providers.subprocess,'Popen',start)
+    def unavailable():raise OSError('selector unavailable')
+    monkeypatch.setattr(providers.selectors,'SelectSelector',unavailable)
+    try:
+        with pytest.raises(ComputeError,match='transport'):
+            providers.bounded([sys.executable,'-c','import time; time.sleep(30)'])
+        assert children[0].poll() is not None
+        assert children[0].stdout.closed and children[0].stdin.closed
+    finally:
+        for child in children:
+            if child.poll() is None:child.kill();child.wait()
+
+
+@pytest.mark.parametrize('kind',['not-zip','bad-crc','unsupported-compression'])
+def test_malformed_archive_errors_are_safe(kind):
+    if kind=='not-zip':data=b'untrusted archive content'
+    else:
+        stream=io.BytesIO()
+        with zipfile.ZipFile(stream,'w') as z:z.writestr('sample.txt','sample')
+        data=bytearray(stream.getvalue());central=data.index(b'PK\x01\x02')
+        if kind=='bad-crc':data[central+16]^=0xff
+        else:
+            data[8:10]=(99).to_bytes(2,'little')
+            data[central+10:central+12]=(99).to_bytes(2,'little')
+        data=bytes(data)
+    with pytest.raises(ComputeError,match='archive'):
+        engine.zip_files(data)
+
+
+@pytest.mark.parametrize('payload',[b'[]',b'null',b'"untrusted diagnostic"'])
+def test_github_nonobject_response_is_rejected(payload):
+    client=providers.GitHub(profile(),token='dummy-test-only')
+    class Response:
+        def __enter__(self):return self
+        def __exit__(self,*args):pass
+        def read(self,limit):return payload
+    class Opener:
+        def open(self,*args,**kwargs):return Response()
+    client.opener=Opener()
+    with pytest.raises(ComputeError,match='response') as error:client.api('/repos/owner/repo')
+    assert 'untrusted diagnostic' not in str(error.value)
+
+
+def test_high_memory_zip_compression_rejected_before_decoder(monkeypatch):
+    stream=io.BytesIO()
+    with zipfile.ZipFile(stream,'w') as archive:archive.writestr('sample','data')
+    data=bytearray(stream.getvalue());central=data.index(b'PK\x01\x02')
+    data[8:10]=(zipfile.ZIP_LZMA).to_bytes(2,'little')
+    data[central+10:central+12]=(zipfile.ZIP_LZMA).to_bytes(2,'little')
+    monkeypatch.setattr(zipfile.ZipFile,'open',lambda *a,**k:pytest.fail('unsupported decoder must not be opened'))
+    with pytest.raises(ComputeError,match='compression'):engine.zip_files(bytes(data))
