@@ -74,11 +74,14 @@ Never put it in source, shell history or screenshots. The key is sent in a heade
 to the fixed Google API host; redirects are rejected, and raw provider errors are
 not printed. Access/quota failures stop the scan, with no hidden retries.
 
-Each live scan makes one bounded `search.list` request ordered by date, followed
+Each live scan makes one bounded `search.list` request (date ordering by default), followed
 by at most one `videos.list` request. No scraping, downloading videos or pagination
 loops. Your project's quota and terms apply; Elmatrix does not inspect billing,
 create cloud resources or fall back to paid AI. A quota-limited API is not unlimited
 free access. Missing/private/deleted results may be omitted by YouTube.
+
+Use `--order viewCount` for YouTube's own view-count ordering, or `--order relevance`
+for its relevance ordering. These do not establish profitability or channel quality.
 
 Presets: `services`, `cleaning`, `repairs`, `beauty`, `tutoring`, `automotive`,
 `digital-services`, `kids`. `--query` lets you research any other niche.
@@ -108,7 +111,7 @@ elmatrix report --format opencode
 ```
 
 `trends` shows raw historical observations for the latest matching query, source,
-region, channel, time window and sample limit. One scan is a baseline, not a trend.
+region, channel, source ordering, time window and sample limit. One scan is a baseline, not a trend.
 A repeated search may return different videos; it is not a census of a niche.
 Views/likes/comments are the source's counts, with missing counts shown as unknown.
 No custom growth score, derived RPM, revenue estimate or best-channel ranking is

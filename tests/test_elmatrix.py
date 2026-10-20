@@ -53,9 +53,10 @@ def test_live_scan_adapter_and_key_not_persisted(home, monkeypatch, capsys):
         calls.append((endpoint, params, key))
         return {'items': [{'id': {'videoId': VIDEO['id']}}]} if endpoint == 'search' else {'items': [VIDEO]}
     monkeypatch.setattr(cli, 'api', api)
-    assert cli.main(['scan', '--query', 'plumbing', '--region', 'ZA']) == 0
+    assert cli.main(['scan', '--query', 'plumbing', '--region', 'ZA', '--order', 'viewCount']) == 0
     assert [c[0] for c in calls] == ['search', 'videos']
     assert calls[0][1]['safeSearch'] == 'strict'
+    assert calls[0][1]['order'] == 'viewCount'
     assert 'test-only-credential' not in capsys.readouterr().out
     assert 'test-only-credential' not in next((home/'.elmatrix').glob('scan-*')).read_text()
 

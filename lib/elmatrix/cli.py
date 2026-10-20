@@ -174,7 +174,7 @@ def scan(args):
         if not key:
             raise ResearchError('set YOUTUBE_API_KEY or use --input with a videos.list JSON export; no scan was performed')
         params = dict(part='snippet', type='video', q=query, maxResults=args.limit,
-                      order='date', regionCode=args.region, safeSearch='strict',
+                      order=args.order, regionCode=args.region, safeSearch='strict',
                       publishedAfter=stamp(now() - timedelta(days=args.days)))
         if args.channel:
             params['channelId'] = identifier(args.channel, r'UC[A-Za-z0-9_-]{22}')
@@ -190,7 +190,7 @@ def scan(args):
             raise ResearchError('unexpected video in provider response')
     data = dict(schema=1, id=uuid.uuid4().hex, captured_at=stamp(), source=source,
                 niche=args.niche, query=query, region=args.region, days=args.days,
-                limit=args.limit, channel=args.channel, videos=rows,
+                limit=args.limit, channel=args.channel, order=args.order, videos=rows,
                 revenue='unknown: private channel-owner analytics required',
                 monetization='unknown', audience_classification='not verified; query labels are not audience certification')
     root = state_dir()
@@ -211,7 +211,7 @@ def select_scans(args):
     if not values:
         raise ResearchError('no matching snapshots; run elmatrix scan first')
     latest = values[-1]
-    fields = ('source', 'niche', 'query', 'region', 'days', 'limit', 'channel')
+    fields = ('source', 'niche', 'query', 'region', 'days', 'limit', 'channel', 'order')
     return [v for v in values if all(v.get(k) == latest.get(k) for k in fields)]
 
 
@@ -290,6 +290,7 @@ def main(argv=None):
     p.add_argument('--niche', choices=tuple(NICHES), default='services')
     p.add_argument('--query', help='custom niche/search phrase overrides preset')
     p.add_argument('--channel', help='optional UC channel ID')
+    p.add_argument('--order', choices=('date', 'viewCount', 'relevance'), default='date', help='YouTube source ordering; no custom score')
     p.add_argument('--region', default='ZA', type=lambda x: identifier(x, r'[A-Z]{2}'))
     p.add_argument('--limit', type=int, choices=range(1, 51), default=10)
     p.add_argument('--days', type=int, choices=range(1, 30), default=7)
