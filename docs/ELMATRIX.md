@@ -101,6 +101,35 @@ loop. An always-on Linux host is needed for reliable unattended operation: iOS c
 suspend iSH, and this command does not bypass that. It has no hidden daemon,
 restart/retry loop, scheduled cloud job, upload or spend permission.
 
+## Product and niche opportunity catalog
+
+The catalog now covers service businesses, digital services, creator tools, education,
+digital products, software, physical products, marketplaces and content. These are
+**hypotheses to investigate**, not verified demand, recommended investments or claims
+of profitability. No market price, competitor revenue, conversion rate or profit is
+fabricated.
+
+```sh
+elmatrix niches
+elmatrix niches --category digital-services
+elmatrix niches --format json
+elmatrix opportunity --niche local-cleaning --region ZA
+elmatrix opportunity --niche digital-templates --region ZA
+```
+
+Each opportunity brief identifies a potential buyer, an offer hypothesis, an initial
+validation test, risks, an existing Elmatrix YouTube search command and an evidence
+ledger. The ledger asks for dated source URLs or first-hand interviews, observable
+buyer commitments, reachable acquisition channels, actual cost inputs and competitor
+comparisons. Empty evidence is explicitly marked missing. A generated brief is not a
+live market scan; the user must collect evidence before deciding to build or sell.
+
+The catalog is deliberately separate from the YouTube preset list. The `--niche`
+argument to `elmatrix scan` remains limited to its existing YouTube presets for
+backward compatibility; use `--query` with a catalog brief's research phrase to
+search a new topic. YouTube results are one signal, not proof of demand, and should
+not be treated as a validated niche ranking.
+
 ## Trends and reports
 
 ```sh
