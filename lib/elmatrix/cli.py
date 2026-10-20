@@ -15,6 +15,7 @@ import urllib.request
 import uuid
 
 from lib.storage import StorageError, private_dir, regular_file, lock, write_json_new
+from lib.elmatrix.catalog import CATALOG, render_catalog, render_opportunity
 
 VERSION = '0.1.0-preview'
 LIMIT = 2 * 1024 * 1024
@@ -306,6 +307,12 @@ def main(argv=None):
             p.add_argument('--history', type=int, choices=range(1, 31), default=2)
         else:
             p.add_argument('--format', choices=('markdown', 'json', 'opencode'), default='markdown')
+    p = sub.add_parser('niches', help='list evidence-labeled opportunity hypotheses')
+    p.add_argument('--category', choices=tuple(sorted({item['category'] for item in CATALOG})))
+    p.add_argument('--format', choices=('markdown', 'json'), default='markdown')
+    p = sub.add_parser('opportunity', help='build a validation brief for one niche hypothesis')
+    p.add_argument('--niche', required=True, help='ID from elmatrix niches')
+    p.add_argument('--region', default='ZA', help='two-letter uppercase country code')
     p = sub.add_parser('providers')
     p.add_argument('--refresh', action='store_true', help='fetch public model catalog; no inference')
     p = sub.add_parser('purge', help='delete all local research snapshots; does not affect YouTube')
@@ -321,6 +328,11 @@ def main(argv=None):
                     time.sleep(args.interval)
         elif args.command == 'report':
             print(report(args), end='')
+        elif args.command == 'niches':
+            print(render_catalog(args.category, args.format), end='')
+        elif args.command == 'opportunity':
+            identifier(args.region, r'[A-Z]{2}')
+            print(render_opportunity(args.niche, args.region), end='')
         elif args.command == 'purge':
             root = state_dir()
             with lock(root / '.lock'):
