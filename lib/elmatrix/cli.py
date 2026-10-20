@@ -161,6 +161,7 @@ def snapshots(root):
 
 
 def scan(args):
+    identifier(args.region, r'[A-Z]{2}')
     query = text(args.query or NICHES[args.niche], 200)
     if not query:
         raise ResearchError('query must not be empty')
@@ -291,7 +292,7 @@ def main(argv=None):
     p.add_argument('--query', help='custom niche/search phrase overrides preset')
     p.add_argument('--channel', help='optional UC channel ID')
     p.add_argument('--order', choices=('date', 'viewCount', 'relevance'), default='date', help='YouTube source ordering; no custom score')
-    p.add_argument('--region', default='ZA', type=lambda x: identifier(x, r'[A-Z]{2}'))
+    p.add_argument('--region', default='ZA', help='two-letter uppercase country code')
     p.add_argument('--limit', type=int, choices=range(1, 51), default=10)
     p.add_argument('--days', type=int, choices=range(1, 30), default=7)
     p.add_argument('--input', help='import a videos.list JSON export; clearly marked unverified')

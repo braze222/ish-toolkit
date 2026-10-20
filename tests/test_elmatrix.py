@@ -72,6 +72,7 @@ def test_missing_key_no_network(home, monkeypatch):
     monkeypatch.setattr(sys.stdin, 'isatty', lambda: False)
     monkeypatch.setattr(cli, 'fetch', lambda *a, **kw: pytest.fail('network called'))
     assert cli.main(['scan']) == 2
+    assert cli.main(['scan', '--region', 'invalid']) == 2
     assert cli.main(['providers']) == 0
 
 
