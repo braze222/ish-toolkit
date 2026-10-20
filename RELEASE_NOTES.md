@@ -88,3 +88,13 @@ silently discarding it. No automatic retention/deletion or scheduler was added.
 
 All operations are local. No deployment to the user's device, background
 service, remote database, revenue engine or account integration is implied.
+
+# Elmatrix 0.1.0-preview — independent research command
+
+- Adds scan/trends/report/providers and purge with separate private local storage.
+- Configurable service and children's-content queries; bounded foreground collection.
+- Official YouTube public-data adapter, historical source counts and unknown revenue.
+- OpenCode research brief handoff and public zero-token-price catalog discovery.
+- Standalone zipapp installer preserves all ish commands/data; CI automatically builds,
+  smoke-tests and publishes a deployment bundle after tests. No hosted target implied.
+- No video generation, uploads, automatic agent execution or paid model fallback.

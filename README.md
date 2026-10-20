@@ -165,3 +165,12 @@ See [the threat model](docs/THREAT_MODEL.md) and
 The MIT license previously declared by this repository is now included in
 [LICENSE](LICENSE). The 2.1 booklet remains applicable; 2.1.1 adds key-creation
 hardening, a Python 3.10 initialization fix and security-maintenance guidance.
+
+## Elmatrix: independent research preview
+
+Use `sh install-elmatrix.sh` to install the separate `elmatrix` command without
+changing `ish`. Research service niches, children's-content topics or custom
+queries with `scan`, inspect timestamped observations with `trends`, create a
+`report`, and check `providers`. No video generation, inferred competitor revenue
+or paid AI fallback. Main-branch CI automatically builds and verifies a standalone
+deployment bundle. See [Elmatrix setup, OpenCode handoff and limits](docs/ELMATRIX.md).

@@ -58,3 +58,7 @@ htmlcov/
 *.tar.gz
 .cloud-venv/
 ish-result.json
+
+# Independent Elmatrix research and builds
+.elmatrix/
+dist/

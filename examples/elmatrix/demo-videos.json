@@ -1,0 +1,14 @@
+{
+  "items": [
+    {
+      "id": "DEMO0000001",
+      "snippet": {
+        "title": "DEMO ONLY: original cleaning-service lesson",
+        "channelId": "UC0000000000000000000000",
+        "channelTitle": "Fictional demo channel",
+        "publishedAt": "2026-10-20T00:00:00Z"
+      },
+      "statistics": {"viewCount": "120", "likeCount": "6"}
+    }
+  ]
+}

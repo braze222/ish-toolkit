@@ -46,3 +46,20 @@ jobs:
         env:
           ISH_TEST_SSH: '1'
         run: python -m pytest -q tests/test_compute_ssh.py
+      - name: Build and verify independent Elmatrix deployment
+        if: matrix.python-version == '3.12'
+        run: |
+          sh -n install-elmatrix.sh
+          python scripts/deploy_elmatrix.py --install --bin-dir "$RUNNER_TEMP/elmatrix-bin"
+          "$RUNNER_TEMP/elmatrix-bin/elmatrix" --version
+          "$RUNNER_TEMP/elmatrix-bin/elmatrix" providers
+      - name: Publish standalone deployment bundle
+        if: matrix.python-version == '3.12' && github.event_name == 'push'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: elmatrix-${{ github.sha }}
+          path: |
+            dist/elmatrix/elmatrix.pyz
+            dist/elmatrix/SHA256SUMS
+          retention-days: 7
+          if-no-files-found: error
