@@ -41,4 +41,4 @@ jobs:
           elmatrix niches > "$RUNNER_TEMP/niches.json"
           elmatrix report > "$RUNNER_TEMP/report.json"
           python -c "import json; assert len(json.load(open('$RUNNER_TEMP/niches.json'))) >= 22"
-          python -c "assert len(json.load(open('$RUNNER_TEMP/report.json'))['results']) >= 22"
+          python -c "import json; assert len(json.load(open('$RUNNER_TEMP/report.json'))['results']) >= 22"
