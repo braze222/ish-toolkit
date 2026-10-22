@@ -98,3 +98,10 @@ service, remote database, revenue engine or account integration is implied.
 - Standalone zipapp installer preserves all ish commands/data; CI automatically builds,
   smoke-tests and publishes a deployment bundle after tests. No hosted target implied.
 - No video generation, uploads, automatic agent execution or paid model fallback.
+
+## Elmatrix build maintenance — 2026-10-22
+
+- Fix checksum-manifest symlink overwrite through atomic replacement.
+- Serialize bundle builds and flush the manifest before publication.
+- Exercise the installed research lifecycle independently of the source checkout.
+- Verify deployment builds and checksums across Python 3.10/3.12/3.13.

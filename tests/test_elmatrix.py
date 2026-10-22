@@ -130,7 +130,21 @@ def test_deployment_independent_and_reinstall(home):
     assert r.returncode == 0 and 'inference_enabled' in r.stdout
     assert (bindir/'ish').read_text() == 'existing ish'
     assert len(list(bindir.glob('elmatrix-backup-*'))) == 1
-    assert (home/'bundle/SHA256SUMS').exists()
+    import hashlib
+    archive = home/'bundle/elmatrix.pyz'
+    assert (home/'bundle/SHA256SUMS').read_text().split()[0] == hashlib.sha256(archive.read_bytes()).hexdigest()
+    # Exercise the installed zipapp without access to the source import path.
+    def packaged(*args):
+        result = subprocess.run([sys.executable, '-I', str(bindir/'elmatrix'), *args],
+                                env=env, cwd=home, capture_output=True, text=True, timeout=20)
+        assert result.returncode == 0, result.stderr
+        return result.stdout
+    snapshot = json.loads(packaged('scan', '--input', str(imported(home)), '--niche', 'cleaning'))
+    assert snapshot['videos'][0]['views'] == '123'
+    assert 'Cleaning tutorial' in packaged('report')
+    assert len(json.loads(packaged('trends'))['observations']) == 1
+    packaged('purge', '--all')
+    assert not list((home/'.elmatrix').glob('scan-*'))
 
 
 def test_no_redirect_of_api_key():
@@ -178,3 +192,14 @@ def test_deploy_refuses_symlink_launcher(home):
     with pytest.raises(Exception):
         deploy.install(archive, bindir)
     assert victim.read_text() == 'preserve'
+
+
+def test_build_checksum_does_not_follow_existing_symlink(home):
+    spec = importlib.util.spec_from_file_location('deploy_elmatrix', ROOT/'scripts/deploy_elmatrix.py')
+    deploy = importlib.util.module_from_spec(spec); spec.loader.exec_module(deploy)
+    output = home/'bundle'; output.mkdir()
+    victim = home/'unrelated-file'; victim.write_text('preserve')
+    (output/'SHA256SUMS').symlink_to(victim)
+    deploy.build(output)
+    assert victim.read_text() == 'preserve'
+    assert not (output/'SHA256SUMS').is_symlink()

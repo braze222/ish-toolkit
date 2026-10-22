@@ -17,6 +17,11 @@ from lib.storage import lock, private_dir, regular_file, sync_dir, sync_file
 
 def build(output):
     output = private_dir(output)
+    with lock(output / '.build.lock'):
+        return _build_locked(output)
+
+
+def _build_locked(output):
     with tempfile.TemporaryDirectory(prefix='elmatrix-build-') as tmp:
         staging = Path(tmp)
         (staging / 'lib' / 'elmatrix').mkdir(parents=True)
@@ -38,7 +43,17 @@ def build(output):
         finally:
             Path(temp).unlink(missing_ok=True)
         digest = hashlib.sha256(archive.read_bytes()).hexdigest()
-        (output / 'SHA256SUMS').write_text(digest + '  elmatrix.pyz\n')
+        # Replace the manifest itself, never follow an existing symlink/hardlink.
+        fd, manifest = tempfile.mkstemp(prefix='.elmatrix-checksum-', dir=output)
+        try:
+            with os.fdopen(fd, 'w', encoding='ascii') as handle:
+                handle.write(digest + '  elmatrix.pyz\n')
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(manifest, output / 'SHA256SUMS')
+            sync_dir(output)
+        finally:
+            Path(manifest).unlink(missing_ok=True)
         return archive
 
 

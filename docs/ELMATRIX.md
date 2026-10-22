@@ -28,8 +28,8 @@ moved after installation; it is not needed to run the zipapp. To roll back, copy
 the saved `elmatrix` executable over the current one. Research data is separate.
 The SHA256SUMS file detects accidental corruption; it is not a publisher signature.
 
-Every push to main automatically runs the toolkit test matrix. On Python 3.12,
-it also builds, installs and smoke-tests Elmatrix and uploads the deployment bundle
+Every push to main automatically runs the toolkit test matrix. On Python 3.10, 3.12 and 3.13,
+it also builds, installs, smoke-tests Elmatrix and checks its checksum. Python 3.12 uploads the deployment bundle
 as `elmatrix-<commit>` in the Actions run (retained seven days). Download from a
 successful run, verify the checksum, and run `python3 elmatrix.pyz --version`.
 This is automatic CI packaging/deployment verification, **not remote installation
@@ -188,3 +188,10 @@ overall). Live Models.dev discovery returned candidates successfully. Standalone
 bundle build and offline execution passed. Bandit 1.9.4 found zero high/medium
 findings and four low subprocess warnings in the intentional deployment smoke
 checks; none were suppressed. GitHub Actions records the combined final result.
+
+Final build review (2026-10-22): fixed checksum publication so an existing
+SHA256SUMS symlink cannot overwrite an unrelated file. Bundle builds now use a
+lock and publish a flushed manifest by atomic replacement. An installed zipapp
+regression exercises scan/report/trends/purge in an isolated interpreter outside
+the source tree. CI verifies the deployment checksum on every supported Python
+version. A passing build is evidence for these checks, not proof of zero defects.
