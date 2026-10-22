@@ -225,6 +225,87 @@ def trends(args):
             'note': 'Compare timestamps and source counts manually. Search samples change and do not establish niche-wide growth.'}
 
 
+def relevance(title, query):
+    """Transparent lexical triage only; not a semantic or audience-suitability verdict."""
+    stop = {'the', 'and', 'for', 'with', 'from', 'into', 'what', 'how', 'your',
+            'you', 'are', 'was', 'this', 'that', 'small', 'business', 'south',
+            'africa', 'best', 'guide', 'tips', '2026', 'use', 'using'}
+    words = lambda value: {w for w in re.findall(r'[a-z0-9]+', value.casefold())
+                           if len(w) > 2 and w not in stop}
+    wanted = words(query)
+    found = words(title)
+    overlap = sorted(wanted & found)
+    ratio = len(overlap) / max(1, len(wanted))
+    if len(overlap) >= 2 and ratio >= 0.35:
+        label = 'relevant'
+    elif overlap:
+        label = 'adjacent'
+    else:
+        label = 'unrelated'
+    return {'label': label, 'matched_terms': overlap,
+            'reason': ('title shares query terms: ' + ', '.join(overlap)) if overlap
+                      else 'no significant query terms appear in the title',
+            'matched_term_ratio': round(ratio, 2)}
+
+
+def insights(args):
+    root = state_dir()
+    with lock(root / '.lock'):
+        scans = snapshots(root)
+    if not scans:
+        raise ResearchError('no matching snapshots; run elmatrix scan first')
+    observations = []
+    videos_by_id = {}
+    for snapshot in scans:
+        for video in snapshot['videos']:
+            triage = relevance(video['title'], snapshot['query'])
+            observations.append({'id': video['id'], 'query': snapshot['query'],
+                                 'captured_at': snapshot['captured_at'], 'source': snapshot['source'],
+                                 'relevance': triage})
+            entry = videos_by_id.setdefault(video['id'], {
+                'id': video['id'], 'title': video['title'], 'url': video['url'],
+                'channel_title': video['channel_title'], 'observations': 0,
+                'queries': [], 'relevance_labels': [], 'latest_captured_at': snapshot['captured_at'],
+                'latest_views': video['views'], 'latest_likes': video['likes']})
+            entry['observations'] += 1
+            if snapshot['query'] not in entry['queries']:
+                entry['queries'].append(snapshot['query'])
+            if triage['label'] not in entry['relevance_labels']:
+                entry['relevance_labels'].append(triage['label'])
+            if snapshot['captured_at'] >= entry['latest_captured_at']:
+                entry.update({'latest_captured_at': snapshot['captured_at'],
+                              'latest_views': video['views'], 'latest_likes': video['likes']})
+    counts = {label: sum(1 for item in observations if item['relevance']['label'] == label)
+              for label in ('relevant', 'adjacent', 'unrelated')}
+    unique = sorted(videos_by_id.values(), key=lambda item: (-item['observations'], item['title'].casefold()))
+    result = {'scope': 'all unexpired saved scans; duplicates merged by YouTube video ID',
+              'scan_count': len(scans), 'observation_count': len(observations),
+              'unique_video_count': len(unique), 'relevance_observation_counts': counts,
+              'videos': unique[:args.limit],
+              'method': 'Title/query token overlap only. Labels are triage hints, not semantic verification.',
+              'limitations': ['Views/likes are latest stored observations, not growth or revenue.',
+                             'Search results are samples, not a market census.',
+                             'Revenue, monetization and audience suitability remain unknown.']}
+    if args.format == 'json':
+        return json.dumps(result, indent=2, ensure_ascii=True)
+    lines = ['# Elmatrix cross-scan insights', '',
+             'Scans: {} | Observations: {} | Unique videos: {}'.format(
+                 result['scan_count'], result['observation_count'], result['unique_video_count']),
+             'Title/query triage — relevant: {} | adjacent: {} | unrelated: {}'.format(
+                 counts['relevant'], counts['adjacent'], counts['unrelated']), '',
+             '| Triage | Video | Observations | Queries | Latest stored views |',
+             '|---|---|---:|---|---:|']
+    for item in unique[:args.limit]:
+        label = ', '.join(item['relevance_labels'])
+        queries = '; '.join(item['queries'])
+        lines.append('| {} | [{}]({}) | {} | {} | {} |'.format(
+            label, item['title'].replace('|', '\\|'), item['url'], item['observations'],
+            queries.replace('|', '\\|'), item['latest_views'] or 'unknown'))
+    lines += ['', 'Method: title/query token overlap only; labels are triage hints, not semantic verification.',
+              'Revenue, monetization and audience suitability remain unknown. Views are not profit evidence.']
+    return '\\n'.join(lines) + '\\n'
+
+
 def report(args):
     data = select_scans(args)[-1]
     if args.format == 'json':
@@ -379,6 +460,9 @@ def main(argv=None):
     p = sub.add_parser('opportunity', help='build a validation brief for one niche hypothesis')
     p.add_argument('--niche', required=True, help='ID from elmatrix niches')
     p.add_argument('--region', default='ZA', help='two-letter uppercase country code')
+    p = sub.add_parser('insights', help='combine saved scans, deduplicate videos and triage title relevance')
+    p.add_argument('--limit', type=int, choices=range(1, 101), default=20)
+    p.add_argument('--format', choices=('markdown', 'json'), default='markdown')
     p = sub.add_parser('providers', help='show saved zero-token-price text/code candidates')
     p.add_argument('--refresh', action='store_true', help='refresh and save public model catalog; no inference')
     p.add_argument('--limit', type=int, choices=range(1, 101), default=10, help='candidates to show (default: 10)')
@@ -407,6 +491,8 @@ def main(argv=None):
                 for path in root.glob('scan-*.json'):
                     regular_file(path).unlink()
             print('Local snapshots deleted; YouTube data unchanged.')
+        elif args.command == 'insights':
+            print(insights(args), end='' if args.format == 'markdown' else '\\n')
         else:
             print(json.dumps(trends(args) if args.command == 'trends' else providers(args), indent=2, ensure_ascii=True))
         return 0
