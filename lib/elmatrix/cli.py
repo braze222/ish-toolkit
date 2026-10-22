@@ -252,6 +252,14 @@ def report(args):
 
 
 def free_models(catalog):
+    """List zero-token-price text/code candidates; never claim access is free."""
+    excluded = (
+        'image', 'vision', 'tts', 'speech', 'audio', 'whisper', 'embed',
+        'rerank', 'ocr', 'translate', 'translation', 'detector', 'safety',
+        'moderation', 'cosmos-transfer', 'bevformer', 'sparsedrive',
+        'streampetr', 'active-speaker', 'studiovoice', 'voiceclone',
+        'voicedesign', 'usdcode', 'usdvalidate',
+    )
     rows = []
     for pid, provider in catalog.items():
         if not isinstance(provider, dict) or not isinstance(provider.get('models'), dict):
@@ -259,28 +267,86 @@ def free_models(catalog):
         for mid, model in provider['models'].items():
             if not isinstance(model, dict):
                 continue
+            name = text(pid + '/' + mid, 300)
+            if any(term in name.casefold() for term in excluded):
+                continue
             cost = model.get('cost', {})
             if not isinstance(cost, dict):
                 continue
             if all(type(cost.get(k)) in (int, float) and cost[k] == 0 for k in ('input', 'output')):
-                rows.append({'model': text(pid + '/' + mid, 300), 'status': 'catalog-zero-token-price; access and total cost unverified'})
+                rows.append({'model': name, 'status': 'catalog-zero-token-price; access and total cost unverified'})
     return sorted(rows, key=lambda x: x['model'])[:1000]
 
 
+def saved_provider_catalog(root):
+    """Load the newest valid provider snapshot; expire it under the same retention rule."""
+    rows = []
+    for path in sorted(root.glob('providers-*.json')):
+        data = load(path)
+        try:
+            checked = datetime.fromisoformat(data['catalog_checked_at'])
+            if checked.tzinfo is None or checked > now() + timedelta(minutes=5):
+                raise ValueError()
+            if now() - checked >= RETENTION:
+                path.unlink()
+                continue
+            candidates = data['free_candidates']
+            if (data.get('schema') != 1 or not isinstance(candidates, list)
+                    or len(candidates) > 100
+                    or not isinstance(data.get('candidate_count'), int)
+                    or data['candidate_count'] < len(candidates)
+                    or not all(isinstance(row, dict)
+                               and isinstance(row.get('model'), str)
+                               and isinstance(row.get('status'), str)
+                               for row in candidates)):
+                raise ValueError()
+        except (KeyError, TypeError, ValueError):
+            raise ResearchError('invalid provider catalog snapshot') from None
+        rows.append(data)
+    return max(rows, key=lambda item: item['catalog_checked_at']) if rows else None
+
+
 def providers(args):
-    result = {'research': {'local_reports': 'ready; no AI cost',
-                          'youtube': 'key present; access unverified' if os.environ.get('YOUTUBE_API_KEY') else 'needs YOUTUBE_API_KEY; quota-limited'},
-              'opencode': {'installed': bool(shutil.which('opencode')), 'inference_enabled': False,
-                           'handoff': 'elmatrix report --format opencode',
-                           'check_models_manually': 'opencode models --verbose'},
-              'free_candidates': [], 'catalog_checked_at': None,
-              'note': 'Zero token prices are discovery hints, not guaranteed free access. No paid fallback, credentials inspection or inference.'}
+    root = state_dir()
     if args.refresh:
-        result['free_candidates'] = free_models(fetch('https://models.dev/api.json', limit=16*1024*1024))
-        result['catalog_checked_at'] = stamp()
-        result['catalog_source'] = 'https://models.dev/api.json'
+        candidates = free_models(fetch('https://models.dev/api.json', limit=16*1024*1024))
+        snapshot = {
+            'schema': 1,
+            'catalog_checked_at': stamp(),
+            'catalog_source': 'https://models.dev/api.json',
+            'candidate_count': len(candidates),
+            'free_candidates': candidates[:100],
+        }
+        with lock(root / '.lock'):
+            saved_provider_catalog(root)
+            write_json_new(root / ('providers-' + uuid.uuid4().hex + '.json'), snapshot)
     else:
-        result['note'] += ' Use --refresh to check the public catalog used by OpenCode.'
+        with lock(root / '.lock'):
+            snapshot = saved_provider_catalog(root)
+
+    limit = 100 if args.full else args.limit
+    candidates = snapshot['free_candidates'][:limit] if snapshot else []
+    result = {
+        'research': {
+            'local_reports': 'ready; no AI cost',
+            'youtube': 'key present; access unverified' if os.environ.get('YOUTUBE_API_KEY') else 'needs YOUTUBE_API_KEY; quota-limited',
+        },
+        'opencode': {
+            'installed': bool(shutil.which('opencode')),
+            'inference_enabled': False,
+            'handoff': 'elmatrix report --format opencode',
+            'check_models_manually': 'opencode models --verbose',
+        },
+        'free_candidates': candidates,
+        'candidate_count': snapshot['candidate_count'] if snapshot else 0,
+        'catalog_checked_at': snapshot['catalog_checked_at'] if snapshot else None,
+        'catalog_source': snapshot['catalog_source'] if snapshot else None,
+        'note': 'Zero token prices are discovery hints, not guaranteed free access. Obvious non-chat modalities are filtered by name only. No paid fallback, credentials inspection or inference.',
+    }
+    if not snapshot:
+        result['note'] += ' No saved catalog; run elmatrix providers --refresh.'
+    elif len(candidates) < result['candidate_count']:
+        result['note'] += ' Use --full or --limit to display more saved candidates.'
     return result
 
 
@@ -313,8 +379,10 @@ def main(argv=None):
     p = sub.add_parser('opportunity', help='build a validation brief for one niche hypothesis')
     p.add_argument('--niche', required=True, help='ID from elmatrix niches')
     p.add_argument('--region', default='ZA', help='two-letter uppercase country code')
-    p = sub.add_parser('providers')
-    p.add_argument('--refresh', action='store_true', help='fetch public model catalog; no inference')
+    p = sub.add_parser('providers', help='show saved zero-token-price text/code candidates')
+    p.add_argument('--refresh', action='store_true', help='refresh and save public model catalog; no inference')
+    p.add_argument('--limit', type=int, choices=range(1, 101), default=10, help='candidates to show (default: 10)')
+    p.add_argument('--full', action='store_true', help='show up to 100 saved candidates')
     p = sub.add_parser('purge', help='delete all local research snapshots; does not affect YouTube')
     p.add_argument('--all', action='store_true', required=True)
     args = parser.parse_args(argv)
