@@ -27,7 +27,7 @@ def main():
     if script is None:
         print('ish: unknown command', file=sys.stderr)
         return 2
-    if sys.argv[1] not in ('compute', 'compatibility') and not (sys.argv[1] == 'selftest' and '--control' in sys.argv[2:]):
+    if sys.argv[1] not in ('compute', 'compatibility', 'dbx') and not (sys.argv[1] == 'selftest' and '--control' in sys.argv[2:]):
         try:
             import importlib
             for module in ('cryptography', 'argon2', 'pyotp'):
