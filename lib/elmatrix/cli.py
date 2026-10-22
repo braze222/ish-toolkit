@@ -303,7 +303,7 @@ def insights(args):
             queries.replace('|', '\\|'), item['latest_views'] or 'unknown'))
     lines += ['', 'Method: title/query token overlap only; labels are triage hints, not semantic verification.',
               'Revenue, monetization and audience suitability remain unknown. Views are not profit evidence.']
-    return '\\n'.join(lines) + '\\n'
+    return '\n'.join(lines) + '\n'
 
 
 def report(args):
@@ -492,7 +492,7 @@ def main(argv=None):
                     regular_file(path).unlink()
             print('Local snapshots deleted; YouTube data unchanged.')
         elif args.command == 'insights':
-            print(insights(args), end='' if args.format == 'markdown' else '\\n')
+            print(insights(args), end='' if args.format == 'markdown' else '\n')
         else:
             print(json.dumps(trends(args) if args.command == 'trends' else providers(args), indent=2, ensure_ascii=True))
         return 0
