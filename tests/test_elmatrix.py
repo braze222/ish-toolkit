@@ -239,3 +239,28 @@ def test_expired_provider_catalog_pruned(home, monkeypatch, capsys):
     loaded = json.loads(capsys.readouterr().out)
     assert loaded['catalog_checked_at'] is None
     assert not snapshot.exists()
+
+
+def test_insights_combines_queries_deduplicates_and_explains_relevance(home, capsys):
+    source = imported(home)
+    assert cli.main(['scan', '--query', 'cleaning tutorials', '--input', str(source)]) == 0
+    capsys.readouterr()
+    assert cli.main(['scan', '--query', 'repairs services', '--input', str(source)]) == 0
+    capsys.readouterr()
+
+    assert cli.main(['insights', '--format', 'json']) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result['scan_count'] == 2
+    assert result['observation_count'] == 2
+    assert result['unique_video_count'] == 1
+    video = result['videos'][0]
+    assert video['observations'] == 2
+    assert len(video['queries']) == 2
+    assert 'adjacent' in video['relevance_labels']
+    assert result['relevance_observation_counts']['unrelated'] == 1
+    assert 'Revenue' in ' '.join(result['limitations'])
+
+
+def test_insights_empty_state_is_clear(home, capsys):
+    assert cli.main(['insights']) == 2
+    assert 'no matching snapshots' in capsys.readouterr().err
