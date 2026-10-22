@@ -7,9 +7,10 @@ from html import unescape
 from urllib.parse import urlparse, urlunparse
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
-import hashlib, json, os, re, sqlite3
+import hashlib, ipaddress, json, os, re, socket, sqlite3
 from pathlib import Path
 from xml.etree import ElementTree as ET
+from urllib.request import HTTPRedirectHandler, build_opener
 
 USER_AGENT = "ElmatrixResearch/0.3 (+public RSS reader; bounded requests)"
 MAX_FEED_BYTES = 2_000_000
@@ -46,6 +47,36 @@ def canonicalize_url(url: str) -> str:
     # Tracking query parameters are removed; meaningful query parameters remain.
     query = "&".join(x for x in p.query.split("&") if x and not x.lower().startswith(("utm_", "fbclid=", "gclid=")))
     return urlunparse((p.scheme.lower(), netloc, p.path or "/", "", query, ""))
+
+def validate_public_url(url: str) -> str:
+    """Validate an HTTP(S) destination and reject local/private address targets."""
+    canonical = canonicalize_url(url)
+    parsed = urlparse(canonical)
+    host = (parsed.hostname or "").rstrip(".").lower()
+    if host in {"localhost", "localhost.localdomain"} or host.endswith((".localhost", ".local", ".internal")):
+        raise ValueError("Local and internal hostnames are not allowed for feed collection.")
+    try:
+        literal = ipaddress.ip_address(host)
+        addresses = [literal]
+    except ValueError:
+        try:
+            answers = socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80), type=socket.SOCK_STREAM)
+        except OSError as exc:
+            raise ValueError("Feed hostname could not be resolved.") from exc
+        addresses = []
+        for answer in answers:
+            try:
+                addresses.append(ipaddress.ip_address(answer[4][0].split("%", 1)[0]))
+            except ValueError:
+                continue
+    if not addresses or any(not address.is_global for address in addresses):
+        raise ValueError("Feed host must resolve only to globally routable IP addresses.")
+    return canonical
+
+class _SafeRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        validate_public_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 def _text(node, names):
     for name in names:
@@ -140,16 +171,17 @@ def open_db(path=None):
     return db
 
 def fetch_rss(url, *, timeout=8, max_bytes=MAX_FEED_BYTES):
-    canonical = canonicalize_url(url)
+    canonical = validate_public_url(url)
     request = Request(canonical, headers={"User-Agent": USER_AGENT, "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml"})
     try:
-        with urlopen(request, timeout=max(1, min(int(timeout), 15))) as response:
-            final_url = response.geturl()
-            if urlparse(final_url).scheme not in ("http", "https"):
-                raise ValueError("Feed redirected to a non-HTTP(S) URL.")
+        opener = build_opener(_SafeRedirectHandler())
+        with opener.open(request, timeout=max(1, min(int(timeout), 15))) as response:
+            final_url = validate_public_url(response.geturl())
             data = response.read(max_bytes + 1)
+    except ValueError:
+        raise
     except (HTTPError, URLError, TimeoutError, OSError) as exc:
-        raise RuntimeError(f"Feed fetch failed for {canonical}: {exc}") from exc
+        raise RuntimeError(f"Feed fetch failed for {canonical}: {type(exc).__name__}") from exc
     if len(data) > max_bytes:
         raise ValueError(f"Feed exceeds {max_bytes} byte limit.")
     return data, canonicalize_url(final_url)
