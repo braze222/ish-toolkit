@@ -1,4 +1,4 @@
-# Elmatrix Standalone 0.3.0-preview
+# Elmatrix Standalone 0.4.0-preview
 
 A separate niche-opportunity research prototype. This project is intentionally **not integrated** into iSH Toolkit commands, installation, vault/TOTP/encryption, or compute modules.
 
@@ -7,9 +7,11 @@ A separate niche-opportunity research prototype. This project is intentionally *
 - 23 starter opportunity hypotheses across content, services, software, education, digital products, and physical products.
 - Personal fit ranking by budget, available time, skills, business models, and region.
 - Explainable score factors; seeded catalog items are hypotheses, not verified market findings.
-- Source-linked RSS/Atom research collection with bounded request timeout, a 2 MB feed limit, a bounded item count, URL canonicalization, and duplicate suppression.
+- Source-linked RSS/Atom research collection with bounded request timeout, a 2 MB feed limit, a bounded item count, URL canonicalization, duplicate suppression, and public-address destination checks for initial URLs and redirects.
 - Local SQLite evidence ledger with source/feed URL, canonical item URL, retrieval time, publication time when available, query, region, and observation.
 - Evidence-aware JSON report and CSV/JSON catalog export.
+- Human-reviewed evidence-to-opportunity links with support/contradiction/context decisions, claim types, rationale, and review withdrawal without deleting source records.
+- Report coverage shows reviewed linked observations separately from heuristic fit; reviews do not automatically prove demand.
 - Loopback-only browser dashboard.
 - Standard-library runtime; tests can run offline.
 
@@ -26,6 +28,9 @@ elmatrix niches
 elmatrix match --budget 0 --hours 5 --skills writing,research --region ZA
 elmatrix research --feed 'https://example.com/feed.xml' --name 'Example public feed' --query 'sample niche' --region ZA
 elmatrix evidence --limit 20
+# Review an observation after inspecting its source and relevance.
+elmatrix review 1 --opportunity content-short-tutorials --decision supports --claim-type demand_signal --rationale 'Explain why this source is relevant.'
+elmatrix links --opportunity content-short-tutorials
 elmatrix report
 elmatrix export --format csv --output niches.csv
 python -m elmatrix.server
@@ -37,7 +42,7 @@ Dashboard: http://127.0.0.1:8765. The HTTP server binds to 127.0.0.1. Do not exp
 
 ## Evidence interpretation
 
-Research records are observations, not automatic niche validation. The current version deliberately does not map a general feed item to a niche automatically: that link requires a human review to avoid fabricated relevance. The ranking report shows evidence coverage as unverified until reviewed linkage is implemented. Dates and source URLs are retained to make later review possible.
+Research records are observations, not automatic niche validation. The current version deliberately does not map a general feed item to a niche automatically: that link requires a human review to avoid fabricated relevance. Unreviewed feed items remain unverified. Use `elmatrix review` only after inspecting the source and deciding what claim it supports or contradicts. `elmatrix links` lists reviewed links, and `elmatrix withdraw-review ID` withdraws a review while retaining the original observation. A reviewed link improves traceability but is not statistical proof of demand.
 
 ## Roadmap
 
