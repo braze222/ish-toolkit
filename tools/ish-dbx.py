@@ -72,7 +72,7 @@ def describe(db, table):
     # Table names are passed as bound values to SQLite's table-valued PRAGMA functions.
     return {
         "table": table,
-        "columns": db.query("SELECT cid, name, type, "notnull" AS "notnull", dflt_value, pk FROM pragma_table_info(?)", (table,)),
+        'columns': db.query('SELECT cid, name, type, "notnull" AS "notnull", dflt_value, pk FROM pragma_table_info(?)', (table,)),
         "indexes": db.query("SELECT name, "unique" AS is_unique, origin, partial FROM pragma_index_list(?)", (table,)),
         "foreign_keys": db.query("SELECT id, seq, "table" AS referenced_table, "from" AS source_column, "to" AS target_column, on_update, on_delete FROM pragma_foreign_key_list(?)", (table,)),
     }
