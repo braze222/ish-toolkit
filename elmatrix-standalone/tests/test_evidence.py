@@ -48,7 +48,7 @@ class EvidenceTests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as td:
    db=open_db(Path(td)/"test.db"); save_evidence(parse_rss(RSS,"https://example.com/feed.xml"),db)
    review_evidence(1,"content-short-tutorials","contradicts","demand_signal","This source is not direct evidence of purchase intent.",db=db)
-   self.assertEqual(rank_with_evidence(db=db)["results"][0]["evidence_coverage"]["status"] in ("unverified","counter_evidence_present","reviewed_supporting_observations"),True)
+   row=next(x for x in rank_with_evidence(db=db)["results"] if x["id"]=="content-short-tutorials")\n   self.assertEqual(row["evidence_coverage"]["status"],"counter_evidence_present")\n   self.assertEqual(row["evidence_coverage"]["contradicting"],1)
    review_id=list_reviews(db=db)[0]["review_id"]; withdraw_review(review_id,db=db)
    self.assertEqual(len(list_reviews(db=db)),0); self.assertEqual(len(list_evidence(db=db)),1)
    db.close()
