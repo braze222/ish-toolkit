@@ -12,6 +12,8 @@ A separate niche-opportunity research prototype. This project is intentionally *
 - Evidence-aware JSON report and CSV/JSON catalog export.
 - Human-reviewed evidence-to-opportunity links with support/contradiction/context decisions, claim types, rationale, and review withdrawal without deleting source records.
 - Report coverage shows reviewed linked observations separately from heuristic fit; reviews do not automatically prove demand.
+- Freshness indicators mark observations older than 90 days as stale (using publication date when available, otherwise retrieval date); undated records remain unknown.
+- Cross-domain exact-title matches are flagged as possible duplicates/syndication. This is a review hint only: it does not prove sources are independent or related.
 - Loopback-only browser dashboard.
 - Standard-library runtime; tests can run offline.
 
@@ -47,7 +49,7 @@ Research records are observations, not automatic niche validation. The current v
 ## Roadmap
 
 1. Source-linked RSS/Atom observations and a local evidence ledger (implemented in this preview).
-2. Human-reviewed evidence-to-opportunity links, stale-source warnings, and competing-source comparison.
+2. Human-reviewed evidence-to-opportunity links and first-pass freshness/possible-syndication warnings (implemented); deeper competing-source comparison remains planned.
 3. More live source adapters after checking current terms, quota and API availability.
 4. Provenance-aware ranking based on relevant linked evidence, not generic article counts.
 5. Optional provider-neutral AI research briefs with claim-to-source citations.
