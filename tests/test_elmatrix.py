@@ -178,3 +178,64 @@ def test_deploy_refuses_symlink_launcher(home):
     with pytest.raises(Exception):
         deploy.install(archive, bindir)
     assert victim.read_text() == 'preserve'
+
+
+def test_provider_catalog_persists_and_default_output_is_bounded(home, monkeypatch, capsys):
+    catalog = {'example': {'models': {
+        'chat-free': {'cost': {'input': 0, 'output': 0}},
+        'vision-free': {'cost': {'input': 0, 'output': 0}},
+        'unknown-price': {},
+        'paid': {'cost': {'input': 1, 'output': 0}},
+    }}}
+    monkeypatch.setattr(cli, 'fetch', lambda *a, **kw: catalog)
+    assert cli.main(['providers', '--refresh']) == 0
+    refreshed = json.loads(capsys.readouterr().out)
+    assert refreshed['candidate_count'] == 1
+    assert len(refreshed['free_candidates']) == 1
+    assert refreshed['free_candidates'][0]['model'] == 'example/chat-free'
+    assert refreshed['catalog_checked_at']
+    state = home / '.elmatrix'
+    snapshot = next(state.glob('providers-*.json'))
+    assert snapshot.stat().st_mode & 0o777 == 0o600
+
+    monkeypatch.setattr(cli, 'fetch', lambda *a, **kw: pytest.fail('unexpected network'))
+    assert cli.main(['providers']) == 0
+    loaded = json.loads(capsys.readouterr().out)
+    assert loaded['catalog_checked_at'] == refreshed['catalog_checked_at']
+    assert loaded['candidate_count'] == 1
+    assert loaded['free_candidates'][0]['model'] == 'example/chat-free'
+
+
+def test_provider_catalog_limit_and_full_options(home, monkeypatch, capsys):
+    catalog = {'example': {'models': {
+        'chat-' + str(i): {'cost': {'input': 0, 'output': 0}} for i in range(15)
+    }}}
+    monkeypatch.setattr(cli, 'fetch', lambda *a, **kw: catalog)
+    assert cli.main(['providers', '--refresh']) == 0
+    capsys.readouterr()
+    assert cli.main(['providers']) == 0
+    default = json.loads(capsys.readouterr().out)
+    assert default['candidate_count'] == 15
+    assert len(default['free_candidates']) == 10
+    assert cli.main(['providers', '--limit', '3']) == 0
+    limited = json.loads(capsys.readouterr().out)
+    assert len(limited['free_candidates']) == 3
+    assert cli.main(['providers', '--full']) == 0
+    full = json.loads(capsys.readouterr().out)
+    assert len(full['free_candidates']) == 15
+
+
+def test_expired_provider_catalog_pruned(home, monkeypatch, capsys):
+    monkeypatch.setattr(cli, 'fetch', lambda *a, **kw: {'example': {'models': {
+        'chat': {'cost': {'input': 0, 'output': 0}}
+    }}})
+    assert cli.main(['providers', '--refresh']) == 0
+    capsys.readouterr()
+    snapshot = next((home / '.elmatrix').glob('providers-*.json'))
+    data = json.loads(snapshot.read_text())
+    data['catalog_checked_at'] = cli.stamp(cli.now() - timedelta(days=30))
+    snapshot.write_text(json.dumps(data))
+    assert cli.main(['providers']) == 0
+    loaded = json.loads(capsys.readouterr().out)
+    assert loaded['catalog_checked_at'] is None
+    assert not snapshot.exists()
