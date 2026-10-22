@@ -130,14 +130,25 @@ backward compatibility; use `--query` with a catalog brief's research phrase to
 search a new topic. YouTube results are one signal, not proof of demand, and should
 not be treated as a validated niche ranking.
 
-## Trends and reports
+## Cross-scan insights, trends and reports
 
 ```sh
+elmatrix insights
+elmatrix insights --limit 50
+elmatrix insights --format json
 elmatrix trends --niche cleaning --history 7
 elmatrix report --niche cleaning
 elmatrix report --format json
 elmatrix report --format opencode
 ```
+
+`insights` combines all unexpired saved scans, merges duplicate videos by YouTube
+video ID, preserves the queries that found each video, and shows the latest stored
+counts. Its relevant/adjacent/unrelated labels use transparent title/query token
+overlap only. This is lightweight triage, not semantic understanding, human review,
+a safety judgment, or proof a video is actually about the target market. Inspect the
+matched query context and original sources before relying on a label. The default
+output is capped at 20 videos; use `--limit` or `--format json` for more detail.
 
 `trends` shows raw historical observations for the latest matching query, source,
 region, channel, source ordering, time window and sample limit. One scan is a baseline, not a trend.
@@ -157,16 +168,25 @@ or an original children's lesson can be a research goal, but revenue is not assu
 ```sh
 elmatrix providers
 elmatrix providers --refresh
+elmatrix providers --limit 30
+elmatrix providers --full
 elmatrix report --format opencode > research-brief.md
 ```
 
 The default provider check is offline: it reports whether OpenCode is on PATH and
 whether a YouTube key is present, without reading OpenCode credentials or validating
 access. `--refresh` fetches the public Models.dev catalog also used by OpenCode and
-lists models with explicit zero input **and** output token prices. Missing pricing
-is never treated as free. Catalog zero prices are candidates only: rate limits,
-account eligibility, geography, other charges and provider privacy terms may differ.
-The catalog timestamp and source are shown; no hardcoded promise of free models.
+persists a private snapshot in `~/.elmatrix`. Later `providers` calls reuse that
+snapshot until it expires after 29 days; they do not fetch the catalog again.
+The default output lists 10 candidates; `--limit 1..100` or `--full` controls the
+display size. Obvious non-chat modalities are filtered by model-name keywords, so
+the filter is approximate and may exclude or misclassify some models.
+
+Candidates require explicit zero input **and** output token prices in the catalog.
+Missing pricing is never treated as free. Catalog zero prices are not proof of
+working access: rate limits, account eligibility, geography, other charges and
+provider privacy terms may differ. The catalog timestamp and source are shown;
+no hardcoded promise of free models. No inference or paid fallback occurs.
 
 The OpenCode integration in this first release is **catalog discovery and an explicit
 research brief handoff**, not automatic agent execution. Review the generated brief
