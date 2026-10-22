@@ -6,6 +6,7 @@ import json
 import sqlite3
 import sys
 import time
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -71,7 +72,7 @@ def describe(db, table):
     # Table names are passed as bound values to SQLite's table-valued PRAGMA functions.
     return {
         "table": table,
-        "columns": db.query("SELECT cid, name, type, "notnull" AS notnull, dflt_value, pk FROM pragma_table_info(?)", (table,)),
+        "columns": db.query("SELECT cid, name, type, "notnull" AS "notnull", dflt_value, pk FROM pragma_table_info(?)", (table,)),
         "indexes": db.query("SELECT name, "unique" AS is_unique, origin, partial FROM pragma_index_list(?)", (table,)),
         "foreign_keys": db.query("SELECT id, seq, "table" AS referenced_table, "from" AS source_column, "to" AS target_column, on_update, on_delete FROM pragma_foreign_key_list(?)", (table,)),
     }
@@ -88,15 +89,19 @@ def capabilities():
 
 
 def doctor():
-    with SQLiteDB(":memory:", DBPolicy()) as db:
-        if db.query("SELECT 1 AS ok") != [{"ok": 1}]:
-            raise DBError("SQLite probe failed")
-        try:
-            db.execute("CREATE TABLE should_be_blocked(value TEXT)")
-        except DBError:
-            pass
-        else:
-            raise DBError("read-only policy probe failed")
+    with tempfile.TemporaryDirectory(prefix="ish-dbx-doctor-") as temp:
+        path = Path(temp) / "probe.db"
+        with SQLiteDB(path, DBPolicy(read_only=False, allow_destructive=True)) as db:
+            db.execute("CREATE TABLE sample(value TEXT)")
+        with SQLiteDB(path, DBPolicy()) as db:
+            if db.query("SELECT 1 AS ok") != [{"ok": 1}]:
+                raise DBError("SQLite probe failed")
+            try:
+                db.execute("CREATE TABLE should_be_blocked(value TEXT)")
+            except DBError:
+                pass
+            else:
+                raise DBError("read-only policy probe failed")
     print("PASS: SQLite available; default policy blocks writes.")
     print("SCOPE: local SQLite only; remote drivers and upstream DBX bridge are not implemented.")
 
@@ -123,7 +128,8 @@ def main(argv=None):
         path = resolve_database(args.database)
         if not Path(path).is_file():
             raise DBError("database does not exist; initialize it with 'ish db init' first")
-        policy = DBPolicy(read_only=not args.write, allow_destructive=args.allow_destructive)
+        policy = (DBPolicy(read_only=not args.write, allow_destructive=args.allow_destructive)
+                  if args.command == "query" else DBPolicy())
         with SQLiteDB(path, policy) as db:
             if args.command in ("tables", "views", "indexes"):
                 rows = list_objects(db, args.command)
