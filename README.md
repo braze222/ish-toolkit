@@ -108,6 +108,21 @@ See the guide for [host registration](docs/CLOUD_COMPUTE.md#connect-an-existing-
 - Historical `.bak`, `.before-*`, `.broken-*` and `.pre-release` source copies
   are omitted from this release, without deleting anything from older installs.
 
+## DBX-inspired database explorer
+
+The native `ish dbx` commands extend the existing local SQLite tools with schema inspection, views and indexes, parameterized queries, bounded output and CSV/JSONL results. This is a lightweight iSH-native feature, not the upstream DBX desktop application; remote drivers and DBX/MCP bridges are not implemented yet.
+
+```sh
+ish dbx capabilities
+ish dbx doctor
+ish dbx tables @notes
+ish dbx schema ./app.db users --format json
+ish dbx query ./app.db --sql 'SELECT 1 AS ready'
+ish dbx query ./app.db --file ./query.sql --format csv
+```
+
+Queries are read-only by default. Explicit writes require both `--write` and `--allow-destructive`. Read [DBX database explorer documentation](docs/DBX_DATABASE_EXPLORER.md) for scope, safety boundaries and examples.
+
 ## Start here
 
 ```sh
