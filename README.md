@@ -169,8 +169,9 @@ hardening, a Python 3.10 initialization fix and security-maintenance guidance.
 ## Elmatrix: independent research preview
 
 Use `sh install-elmatrix.sh` to install the separate `elmatrix` command without
-changing `ish`. Research service niches, children's-content topics or custom
-queries with `scan`, inspect timestamped observations with `trends`, create a
-`report`, and check `providers`. No video generation, inferred competitor revenue
-or paid AI fallback. Main-branch CI automatically builds and verifies a standalone
-deployment bundle. See [Elmatrix setup, OpenCode handoff and limits](docs/ELMATRIX.md).
+changing `ish`. Research with `scan`, combine saved searches with `insights`, inspect
+history with `trends`, create a `report`, and discover provider candidates with
+`providers --refresh`. Provider discovery is saved locally; later `providers` calls
+show a concise list. Zero catalog prices do not prove working free access. No video
+generation, inferred competitor revenue or paid AI fallback. See
+[Elmatrix setup, OpenCode handoff and limits](docs/ELMATRIX.md).
