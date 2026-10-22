@@ -1,6 +1,6 @@
 import sqlite3, tempfile, unittest
 from pathlib import Path
-from elmatrix.evidence import parse_rss, canonicalize_url, open_db, save_evidence, list_evidence
+from elmatrix.evidence import parse_rss, canonicalize_url, validate_public_url, open_db, save_evidence, list_evidence
 from elmatrix.ranking import rank_with_evidence
 from elmatrix.reviews import review_evidence, list_reviews, withdraw_review
 
@@ -10,6 +10,11 @@ class EvidenceTests(unittest.TestCase):
   self.assertEqual(canonicalize_url("https://EXAMPLE.com/a?utm_source=x&id=4#frag"),"https://example.com/a?id=4")
  def test_rejects_non_http(self):
   with self.assertRaises(ValueError): canonicalize_url("file:///etc/passwd")
+ def test_rejects_local_and_private_feed_targets(self):
+  for url in ("http://127.0.0.1/feed", "http://localhost/feed", "http://169.254.169.254/latest/meta-data", "http://[::1]/feed"):
+   with self.subTest(url=url), self.assertRaises(ValueError): validate_public_url(url)
+ def test_rejects_embedded_credentials_for_collection(self):
+  with self.assertRaises(ValueError): validate_public_url("https://user:pass@example.com/feed")
  def test_parse_rss_and_store_deduplicates(self):
   items=parse_rss(RSS,"https://example.com/feed.xml",retrieved_at="2026-10-22T10:00:00+00:00")
   self.assertEqual(len(items),1)
