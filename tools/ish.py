@@ -4,7 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-COMMANDS = {'compatibility': 'ish-compatibility.py', 'db': 'ish-db.py', 'doctor': 'ish-doctor.py', 'vault': 'vault.py',
+COMMANDS = {'compatibility': 'ish-compatibility.py', 'db': 'ish-db.py', 'dbx': 'ish-dbx.py', 'doctor': 'ish-doctor.py', 'vault': 'vault.py',
             'totp': 'totp.py', 'crypt': 'crypt.py', 'shred': 'shred.py',
             'compute': 'ish-compute.py', 'workspace': 'ish-workspace.py',
             'backup': 'ish-backup.py', 'selftest': 'ish-selftest.py'}
@@ -12,7 +12,7 @@ COMMANDS = {'compatibility': 'ish-compatibility.py', 'db': 'ish-db.py', 'doctor'
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1] in ('-h', '--help', 'help'):
-        print('Usage: ish {db|workspace|backup|vault|totp|crypt|doctor|selftest|compute|shred} [arguments]')
+        print('Usage: ish {db|dbx|workspace|backup|vault|totp|crypt|doctor|selftest|compute|shred} [arguments]')
         print('Compatibility: ish compatibility. Compute: status | init | config | cloud | hosts | run | jobs. Run plans by default; see docs/CLOUD_COMPUTE.md.')
         return 0
     if sys.argv[1] == '--version':
@@ -27,7 +27,7 @@ def main():
     if script is None:
         print('ish: unknown command', file=sys.stderr)
         return 2
-    if sys.argv[1] not in ('compute', 'compatibility') and not (sys.argv[1] == 'selftest' and '--control' in sys.argv[2:]):
+    if sys.argv[1] not in ('compute', 'compatibility', 'dbx') and not (sys.argv[1] == 'selftest' and '--control' in sys.argv[2:]):
         try:
             import importlib
             for module in ('cryptography', 'argon2', 'pyotp'):
