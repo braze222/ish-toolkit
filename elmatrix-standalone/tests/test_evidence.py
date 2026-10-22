@@ -55,11 +55,12 @@ class EvidenceTests(unittest.TestCase):
    self.assertEqual(len(list_reviews(db=db)),0); self.assertEqual(len(list_evidence(db=db)),1)
    db.close()
  def test_report_exposes_freshness_and_possible_syndication_without_claiming_independence(self):
-  from elmatrix.evidence import Evidence, save_evidence
+  from elmatrix.evidence import save_evidence
   from elmatrix.ranking import evidence_summary
   with tempfile.TemporaryDirectory() as td:
    db=open_db(Path(td)/"test.db")
    items=parse_rss(RSS,"https://example.com/feed.xml",retrieved_at="2020-01-01T00:00:00+00:00")
+   items[0].published_at=""
    save_evidence(items,db)
    item=items[0]
    duplicate=type(item)(**{**item.__dict__,"source_name":"Mirror","source_url":"https://mirror.example/feed.xml","canonical_url":"https://mirror.example/story","content_hash":"unique-hash-2","retrieved_at":"2020-01-01T00:00:00+00:00"})
