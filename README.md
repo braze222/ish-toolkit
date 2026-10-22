@@ -174,3 +174,15 @@ queries with `scan`, inspect timestamped observations with `trends`, create a
 `report`, and check `providers`. No video generation, inferred competitor revenue
 or paid AI fallback. Main-branch CI automatically builds and verifies a standalone
 deployment bundle. See [Elmatrix setup, OpenCode handoff and limits](docs/ELMATRIX.md).
+
+## Elmatrix standalone prototype (separate package)
+
+The experimental standalone research prototype is isolated in
+[`elmatrix-standalone/`](elmatrix-standalone/README.md), with its own Python
+package, CLI, local database, dashboard, tests, and CI workflow. It does not
+import toolkit modules, register an `ish` subcommand, or change the toolkit
+installer or security/compute state. This folder placement is for versioned
+review inside this repository; it can be extracted into its own GitHub repository
+when repository creation is available. Its 0.3 preview adds explicit RSS/Atom
+collection and source provenance; it does not yet claim verified market demand or
+fully automated competitive intelligence.
