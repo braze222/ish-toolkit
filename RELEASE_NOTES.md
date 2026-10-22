@@ -1,3 +1,13 @@
+# Elmatrix 0.2.0-preview — scheduled research and explicit assistance
+
+- Daily GitHub research workflow with opt-in activation, explicit demo/live modes,
+  bounded requests and seven-day report artifacts; phone need not stay awake.
+- Push-triggered demo validates the research pipeline without credentials.
+- Explicit OpenCode research assistance with isolated configuration, denied tools,
+  bounded execution, fresh zero-token-price checks and no automatic paid fallback.
+- No video generation or YouTube publishing. OpenCode model access and live
+  scheduled research require the owner's credentials/configuration.
+
 # 3.0.2-preview — transport and artifact failure handling
 
 - Reap transport children when selector setup fails; normalize post-EOF timeouts.

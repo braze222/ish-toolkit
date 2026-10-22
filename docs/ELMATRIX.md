@@ -1,6 +1,6 @@
 # Elmatrix research preview — independent of iSH Toolkit
 
-Elmatrix 0.1.0-preview is a small, Python-standard-library research CLI. Its first
+Elmatrix 0.2.0-preview is a small, Python-standard-library research CLI. Its first
 job is to gather public YouTube observations and help you decide what to research
 next. It is not a revenue engine or a video generator. Existing `ish` commands,
 vaults, compute settings and launchers are not modified by its installer.
@@ -139,13 +139,22 @@ is never treated as free. Catalog zero prices are candidates only: rate limits,
 account eligibility, geography, other charges and provider privacy terms may differ.
 The catalog timestamp and source are shown; no hardcoded promise of free models.
 
-The OpenCode integration in this first release is **catalog discovery and an explicit
-research brief handoff**, not automatic agent execution. Review the generated brief
-and use your separately installed OpenCode to inspect it if you choose. Its documented
-`opencode models --verbose` command exposes model/cost metadata. Do not pass untrusted
-video titles as shell commands. Elmatrix does not run `opencode run`, auto-approve
-tools, transmit research to an AI provider, generate videos or upload to YouTube.
-OpenCode itself may not run on iSH's architecture; Elmatrix still works independently.
+`elmatrix assist --model opencode/MODEL_ID` prepares a plan from the latest
+snapshot. Add `--execute --allow-remote` to run OpenCode and send the query,
+titles and public URLs to that provider. Choose an exact model ID from the catalog;
+only the `opencode/` provider is supported by this initial execution adapter.
+It refreshes pricing and rejects missing/nonzero token prices, with no paid fallback.
+Catalog pricing is not a billing guarantee: check the provider's terms and limits.
+
+OpenCode must be installed separately on a supported host. The adapter uses a fresh
+HOME/XDG configuration, `--pure`, deny-all permissions, no inherited credential
+store/plugins, and no tools. Only `OPENCODE_API_KEY`, if supplied in the environment,
+is forwarded as a credential; your YouTube key is never forwarded. Both the main
+and small model are explicitly selected. Output/time are bounded, errors are
+sanitized and no retry occurs. A tool permission setting is not an OS sandbox:
+use a trusted OpenCode installation and account. Research memos are printed as
+JSON with `review_required: true`; they are not executed or published.
+OpenCode itself may not run on iSH; the rest of Elmatrix still runs independently.
 
 Future content work should produce original scripts, characters, visuals, music and
 voices with appropriate rights, and require review before publication. Researching
@@ -163,7 +172,9 @@ conservative margin under YouTube's 30-day public-data storage limit. An inactiv
 process cannot delete files while your phone is off: run `purge --all` when retiring
 the tool, and arrange regular maintenance on an always-on host. You must also delete
 or refresh exported reports/backups within the applicable period. `providers` does
-not touch research storage. No content is uploaded by this tool.
+not touch research storage. The scan/report commands do not upload content. Explicit assist sends the stated
+public research fields to the selected model provider; scheduled research creates
+GitHub Actions artifacts.
 
 ## Verification and limits
 
@@ -195,3 +206,46 @@ lock and publish a flushed manifest by atomic replacement. An installed zipapp
 regression exercises scan/report/trends/purge in an isolated interpreter outside
 the source tree. CI verifies the deployment checksum on every supported Python
 version. A passing build is evidence for these checks, not proof of zero defects.
+
+## Daily research on GitHub (phone can be offline)
+
+The `Elmatrix daily research` workflow runs at **06:23 Africa/Johannesburg**
+(04:23 UTC). GitHub schedules can be delayed or dropped and inactive public-repo
+schedules may be disabled; this is not an always-on or exact-time service.
+Default batches research cleaning, repairs and digital services, with at most
+three searches and three metadata requests. Edit the query map in
+`scripts/elmatrix_daily.py` to change the niches. No model/video generation occurs
+in the daily workflow.
+
+One-time activation in this repository's GitHub Settings → Secrets and variables
+→ Actions:
+1. Add a repository **secret** `YOUTUBE_API_KEY` containing your API key.
+2. Add a repository **variable** `ELMATRIX_RESEARCH_ENABLED` with value `true`.
+3. In Actions → Elmatrix daily research → Run workflow, uncheck **demo** for
+   a first live run. A checked demo uses fictional data and needs no key.
+
+Set the variable to `false` to stop scheduled scans. Missing keys fail live runs
+clearly; they never produce success-labeled demo results. Each successful run uploads
+three JSON/Markdown reports and `STATUS.json` with mode LIVE or DEMO. Artifacts expire
+in seven days; downloaded copies are your responsibility. Public-repository readers
+may access these artifacts, so use public research queries only. No secrets are
+written into them. Reports are independent daily observations; history is not
+restored across runners or represented as multi-day growth analysis.
+
+Pushes affecting this workflow run a DEMO batch automatically to verify deployment
+without credentials. This verifies the runner/pipeline, not your live API secret.
+Add secrets only in GitHub's settings, never in chat or committed files. The
+connector used to build this update cannot set your account's repository secrets.
+
+References:
+- https://opencode.ai/docs/permissions/
+- https://opencode.ai/docs/cli/
+- https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule
+
+Validation for 0.2.0-preview (2026-10-22): 203 local tests passed including
+loopback SSH; 23 focused Elmatrix cases passed after final packaging/permission
+assertions. OpenCode 1.19.4 installed and accepted the isolated deny-all config.
+A credential-free live assistance request did not succeed and a minimal diagnostic
+request timed out. Consequently live model inference is **not verified** here.
+The owner's iSH scan/report/trends outputs verified live YouTube access on that
+device, but GitHub still needs its own repository secret for scheduled live runs.

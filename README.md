@@ -174,3 +174,7 @@ queries with `scan`, inspect timestamped observations with `trends`, create a
 `report`, and check `providers`. No video generation, inferred competitor revenue
 or paid AI fallback. Main-branch CI automatically builds and verifies a standalone
 deployment bundle. See [Elmatrix setup, OpenCode handoff and limits](docs/ELMATRIX.md).
+
+Elmatrix 0.2 adds opt-in daily GitHub research and `elmatrix assist` for explicit
+OpenCode research memos. See the guide's activation steps; no credentials are
+stored in source, and video generation/publishing remain outside this release.

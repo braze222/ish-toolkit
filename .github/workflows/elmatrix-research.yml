@@ -1,0 +1,48 @@
+name: Elmatrix daily research
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/elmatrix-research.yml', 'scripts/elmatrix_daily.py', 'lib/elmatrix/**']
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+    inputs:
+      demo:
+        description: Use fictional demo data (no API key or live research)
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: elmatrix-daily-research
+  cancel-in-progress: false
+jobs:
+  research:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || vars.ELMATRIX_RESEARCH_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Run bounded research batch
+        env:
+          YOUTUBE_API_KEY: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.demo)) && secrets.YOUTUBE_API_KEY || '' }}
+          DEMO: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.demo) }}
+          ELMATRIX_HOME: ${{ runner.temp }}/elmatrix-state
+        run: |
+          if [ "$DEMO" = 'true' ]; then
+            python scripts/elmatrix_daily.py --demo --output "$RUNNER_TEMP/research-reports"
+          else
+            python scripts/elmatrix_daily.py --output "$RUNNER_TEMP/research-reports"
+          fi
+      - name: Upload dated research reports
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: elmatrix-research-${{ github.run_id }}
+          path: ${{ runner.temp }}/research-reports/
+          retention-days: 7
+          if-no-files-found: error

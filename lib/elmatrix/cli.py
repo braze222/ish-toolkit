@@ -1,4 +1,4 @@
-"""Independent, stdlib-only YouTube research. No inference, publishing or generation."""
+"""Independent YouTube research and explicit text assistance. No publishing or video generation."""
 import argparse
 from datetime import datetime, timezone, timedelta
 import getpass
@@ -16,7 +16,7 @@ import uuid
 
 from lib.storage import StorageError, private_dir, regular_file, lock, write_json_new
 
-VERSION = '0.1.0-preview'
+VERSION = '0.2.0-preview'
 LIMIT = 2 * 1024 * 1024
 RETENTION = timedelta(days=29)
 NICHES = {
@@ -246,7 +246,7 @@ def report(args):
                  'Use this snapshot only to plan further manual research. Do not generate videos, upload, spend money,',
                  'infer earnings, rank profitability or calculate derived YouTube metrics. Propose original concepts',
                  'separately from source facts. Ask the owner to review rights and audience suitability.',
-                 'No inference has been run by Elmatrix. Review provider pricing/privacy before sending this file.', ''] + lines
+                 'This handoff does not run inference. Review provider pricing/privacy before sending this file.', ''] + lines
     return '\n'.join(lines) + '\n'
 
 
@@ -269,7 +269,7 @@ def free_models(catalog):
 def providers(args):
     result = {'research': {'local_reports': 'ready; no AI cost',
                           'youtube': 'key present; access unverified' if os.environ.get('YOUTUBE_API_KEY') else 'needs YOUTUBE_API_KEY; quota-limited'},
-              'opencode': {'installed': bool(shutil.which('opencode')), 'inference_enabled': False,
+              'opencode': {'installed': bool(shutil.which('opencode')), 'inference_enabled': False, 'explicit_assist_available': True,
                            'handoff': 'elmatrix report --format opencode',
                            'check_models_manually': 'opencode models --verbose'},
               'free_candidates': [], 'catalog_checked_at': None,
@@ -308,6 +308,12 @@ def main(argv=None):
             p.add_argument('--format', choices=('markdown', 'json', 'opencode'), default='markdown')
     p = sub.add_parser('providers')
     p.add_argument('--refresh', action='store_true', help='fetch public model catalog; no inference')
+    p = sub.add_parser('assist', help='plan or explicitly run an isolated OpenCode research memo')
+    p.add_argument('--niche', choices=tuple(NICHES))
+    p.add_argument('--query')
+    p.add_argument('--model', required=True, help='explicit opencode/model ID; zero catalog token prices required')
+    p.add_argument('--execute', action='store_true')
+    p.add_argument('--allow-remote', action='store_true')
     p = sub.add_parser('purge', help='delete all local research snapshots; does not affect YouTube')
     p.add_argument('--all', action='store_true', required=True)
     args = parser.parse_args(argv)
@@ -319,6 +325,9 @@ def main(argv=None):
                 print(json.dumps(scan(args), ensure_ascii=True, indent=2), flush=True)
                 if cycle + 1 < args.cycles:
                     time.sleep(args.interval)
+        elif args.command == 'assist':
+            from .assistant import run
+            print(json.dumps(run(args), indent=2, ensure_ascii=True))
         elif args.command == 'report':
             print(report(args), end='')
         elif args.command == 'purge':
