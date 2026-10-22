@@ -1,59 +1,44 @@
-# Elmatrix standalone — next development milestone
+# Elmatrix standalone — milestone 0.3
 
-## Milestone 0.3: source-linked niche research and competitive intelligence
+## Status: research foundation implemented; intelligence features remain staged
 
-**Goal:** move from a locally seeded opportunity catalog to a research workflow where each important market claim can be inspected, dated, and challenged. Elmatrix remains a separate project; it must not become an `ish` subcommand or depend on iSH Toolkit internals.
+Elmatrix lives under `elmatrix-standalone/` and remains separate from the iSH Toolkit runtime, installer, security utilities, and compute commands.
 
-### 1. Live, source-linked research
-- Add pluggable public-source adapters, starting with sources whose access terms and API limits permit the intended use.
-- Store source name, canonical URL, retrieval timestamp, query/region, metric definition, and a short factual observation for every evidence item.
-- Keep source facts distinct from user hypotheses, imported data, and AI-generated summaries.
-- Set explicit timeouts, bounded result counts, respectful rate limits, and clear source/API-key requirements. No stealth scraping, access-control bypass, or unbounded crawling.
-- Provide offline fixtures so tests do not require API keys or network access.
+### Implemented in this branch
+- Standalone Python package metadata and `elmatrix` CLI entry point.
+- Broad starter catalog spanning content, services, software, education, digital products, and physical products.
+- Transparent heuristic profile matching by budget, time, skills, business model, and region.
+- Explicit opt-in public RSS/Atom collection using bounded HTTP requests.
+- Evidence ledger in SQLite with source/feed URL, canonical item URL, retrieval timestamp, publication timestamp when available, query, region, observation, and content hash.
+- URL canonicalization and duplicate suppression.
+- CLI commands for `research`, `evidence`, `report`, `match`, `experiment`, and `export`.
+- Loopback-only read-only dashboard for matching, catalog browsing, and evidence inspection.
+- Offline unit tests and a CI workflow across Python 3.10–3.13.
 
-### 2. Competitive intelligence
-- Compare public offers, audience questions, content formats, visible engagement signals, pricing when explicitly published, and gaps users report.
-- Treat view counts and engagement as observations, not proof of demand, earnings, conversion, or competitor profitability.
-- Deduplicate URLs, retain provenance, and show when sources disagree or data is stale.
-- Do not copy protected content, impersonate creators, or infer private analytics.
+### Research integrity rules
+- A feed item is an observation, not proof of demand, sales, revenue, or profitability.
+- Feed entries are not automatically attributed to a niche; current reports explicitly show unverified evidence coverage until reviewed links exist.
+- Network failures return an error rather than a fake successful report.
+- No unbounded crawling, credential-in-URL support, hidden provider fallback, automatic publishing, or background collection.
+- The dashboard binds to `127.0.0.1` only.
 
-### 3. Evidence-based opportunity ranking
-- Explain each score as separate factors: observed demand signals, customer pain, monetization path, feasibility, competition, cost/time fit, and evidence quality.
-- Weight evidence by recency, source quality, independence, sample size, and whether the metric directly supports the claim.
-- Show uncertainty, missing data, and counter-evidence. Do not turn missing evidence into a positive score.
-- Keep a visible separation between measured observations, calculated estimates, and assumptions.
-- Require a validation experiment and success metric before marking a niche as validated.
+## Remaining milestone work
 
-### 4. Optional AI research/content workflow (after research foundations)
-- Make model/provider integrations opt-in and provider-neutral. Detect available tools; never claim a model is free solely because a catalog lists zero prices.
-- Generate a cited research brief first, then original content outlines/scripts/drafts tied to that evidence.
-- Include source links, claim-to-source mapping, originality checks, rights/safety review, and human approval gates.
-- No automatic public publishing, spending, credential collection, or hidden provider fallback by default.
+1. **Reviewed evidence links:** add explicit evidence-to-opportunity and evidence-to-claim relationships, with a human relevance decision and rationale.
+2. **Competitive comparisons:** compare only public, source-linked offer details and observable content signals; keep source disagreement and collection dates visible.
+3. **Evidence quality:** add stale-data warnings, source independence/quality indicators, metric definitions, missing-data display, and counter-evidence.
+4. **Live source diversity:** add another source adapter only after documenting API terms, access limits, and data semantics. Keep fixtures for offline CI.
+5. **Evidence-aware ranking:** do not increase a niche score from generic feed volume. Use only reviewed relevant evidence and expose the factors, uncertainty, and evidence coverage.
+6. **Optional AI research briefs:** provider-neutral, explicit opt-in, cited claims, source-text prompt-injection handling, and human review.
+7. **Original content workflow:** create drafts only after evidence quality checks; include source attribution, originality and rights review, and approval before publication.
 
-### 5. Suggested implementation sequence
-1. Define an evidence schema and migration/versioning strategy.
-2. Add a source adapter interface plus offline fixture adapter.
-3. Implement one well-documented live source adapter after verifying its current API terms and quota model.
-4. Add provenance-aware deduplication and stale-evidence warnings.
-5. Rework ranking to expose factor values, confidence, evidence coverage, and uncertainty.
-6. Add competitive comparison reports and CSV/JSON export.
-7. Add opt-in AI-generated cited briefs; content drafts come after evidence quality checks.
-8. Add tests for source failures, timeouts, stale data, duplicate sources, missing metrics, prompt injection in source text, and offline behavior.
+## Acceptance gates
+- Tests run without network access or API credentials.
+- Every collected item retains a canonical URL and retrieval timestamp.
+- Source text is treated as untrusted data and never as instructions to the software or model.
+- Failed, stale, contradictory, or missing data is visible and is not converted to positive evidence.
+- Revenue and monetization are never reported as facts without direct, authorized evidence.
+- No public publishing, purchases, or paid provider calls happen without explicit opt-in.
+- The standalone package installs without importing iSH Toolkit internals.
 
-### Acceptance criteria
-- Every live observation has a canonical source URL and retrieval timestamp.
-- Network failure never produces a successful-looking empty or fabricated market report.
-- Tests run offline and do not need provider credentials.
-- Ranking output explains its factors and clearly marks unverified hypotheses.
-- No report presents competitor revenue or monetization status as fact without direct, authorized evidence.
-- The standalone package installs and runs without modifying toolkit commands, configuration, vault, or compute state.
-- The browser interface remains loopback-only unless authentication and deployment security are explicitly implemented.
-
-### Out of scope for this milestone
-- Guaranteed income or “profitable niche” claims.
-- Private competitor analytics or inferred exact revenue.
-- Unbounded scraping, evading quotas, or bypassing paywalls.
-- Automatic posting, purchases, ad spend, or autonomous actions with external side effects.
-- Coupling Elmatrix to the iSH Toolkit's internal Python modules.
-
-This milestone is a development plan, not a claim that live research adapters or AI content generation already exist.
+This roadmap distinguishes delivered code from planned work; it does not claim full competitive intelligence, verified market demand, AI content generation, or publishing are already implemented.
