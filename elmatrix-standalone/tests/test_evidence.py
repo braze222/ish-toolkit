@@ -54,6 +54,25 @@ class EvidenceTests(unittest.TestCase):
    review_id=list_reviews(db=db)[0]["review_id"]; withdraw_review(review_id,db=db)
    self.assertEqual(len(list_reviews(db=db)),0); self.assertEqual(len(list_evidence(db=db)),1)
    db.close()
+ def test_report_exposes_freshness_and_possible_syndication_without_claiming_independence(self):
+  from elmatrix.evidence import Evidence, save_evidence
+  from elmatrix.ranking import evidence_summary
+  with tempfile.TemporaryDirectory() as td:
+   db=open_db(Path(td)/"test.db")
+   items=parse_rss(RSS,"https://example.com/feed.xml",retrieved_at="2020-01-01T00:00:00+00:00")
+   save_evidence(items,db)
+   item=items[0]
+   duplicate=type(item)(**{**item.__dict__,"source_name":"Mirror","source_url":"https://mirror.example/feed.xml","canonical_url":"https://mirror.example/story","content_hash":"unique-hash-2","retrieved_at":"2020-01-01T00:00:00+00:00"})
+   save_evidence([duplicate],db)
+   summary=evidence_summary(db)
+   self.assertEqual(summary["freshness"]["stale"],2)
+   self.assertEqual(summary["possible_syndicated_or_title_duplicate_items"],2)
+   self.assertIn("do not prove",summary["independence_notice"])
+   self.assertTrue(all(x["freshness"]["status"]=="stale" for x in summary["items"]))
+   db.close()
+ def test_unknown_dates_are_not_assumed_fresh(self):
+  from elmatrix.ranking import _freshness
+  self.assertEqual(_freshness({"published_at":"","retrieved_at":""},__import__("datetime").datetime.now(__import__("datetime").timezone.utc))["status"],"unknown")
  def test_rejects_unknown_opportunity_and_evidence(self):
   with tempfile.TemporaryDirectory() as td:
    db=open_db(Path(td)/"test.db")
