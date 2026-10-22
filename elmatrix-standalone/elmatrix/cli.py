@@ -4,6 +4,7 @@ from pathlib import Path
 from .engine import OPPORTUNITIES, match_opportunities
 from .evidence import open_db, collect_feed, save_evidence, list_evidence
 from .ranking import rank_with_evidence
+from .reviews import review_evidence, list_reviews, withdraw_review
 from . import __version__
 
 def main(argv=None):
@@ -22,6 +23,13 @@ def main(argv=None):
     research=sub.add_parser("research",help="collect a public RSS/Atom feed (network access is explicit)")
     research.add_argument("--feed",required=True); research.add_argument("--name",default=""); research.add_argument("--query",default=""); research.add_argument("--region",default="global"); research.add_argument("--timeout",type=int,default=8); research.add_argument("--limit",type=int,default=50)
     ev=sub.add_parser("evidence",help="list collected source-linked observations"); ev.add_argument("--limit",type=int,default=50)
+    rev=sub.add_parser("review",help="human-review a source observation for an opportunity")
+    rev.add_argument("evidence_id",type=int); rev.add_argument("--opportunity",required=True)
+    rev.add_argument("--decision",required=True,choices=["supports","contradicts","context_only","irrelevant"])
+    rev.add_argument("--claim-type",required=True,choices=["demand_signal","customer_pain","competitor_offer","pricing","distribution","other"])
+    rev.add_argument("--rationale",required=True); rev.add_argument("--reviewer",default="local-user")
+    links=sub.add_parser("links",help="list reviewed source links"); links.add_argument("--opportunity",default="")
+    withdraw=sub.add_parser("withdraw-review",help="withdraw a review without deleting its source observation"); withdraw.add_argument("review_id",type=int)
     args=p.parse_args(argv)
     if args.command=="init":
         db=open_db(); db.close(); print(f"Initialized local store: {Path(os.environ.get('ELMATRIX_HOME',Path.home()/'.elmatrix-standalone'))}"); return 0
@@ -38,6 +46,16 @@ def main(argv=None):
         print(json.dumps({"feed":args.feed,"parsed":len(items),"new_saved":count,"note":"Published items are source-linked observations, not proof of demand or profitability."},indent=2)); return 0
     if args.command=="evidence":
         print(json.dumps(list_evidence(limit=args.limit),indent=2,ensure_ascii=False)); return 0
+    if args.command=="review":
+        try: review_evidence(args.evidence_id,args.opportunity,args.decision,args.claim_type,args.rationale,reviewer=args.reviewer)
+        except (ValueError, RuntimeError) as exc: p.exit(2,f"Review failed: {exc}\n")
+        print("Review saved. This records a human assessment, not proof that the claim is true."); return 0
+    if args.command=="links":
+        print(json.dumps(list_reviews(opportunity_id=args.opportunity or None),indent=2,ensure_ascii=False)); return 0
+    if args.command=="withdraw-review":
+        try: withdraw_review(args.review_id)
+        except ValueError as exc: p.exit(2,f"Could not withdraw review: {exc}\n")
+        print("Review withdrawn; original source observation retained."); return 0
     if args.command=="niches": rows=[x.to_dict() for x in OPPORTUNITIES]
     elif args.command=="match":
         rows=match_opportunities(budget=args.budget,hours=args.hours,skills=args.skills.split(","),models=args.models.split(","),region=args.region)
