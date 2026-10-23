@@ -34,8 +34,27 @@ def main(argv=None):
     if args.command=="init":
         db=open_db(); db.close(); print(f"Initialized local store: {Path(os.environ.get('ELMATRIX_HOME',Path.home()/'.elmatrix-standalone'))}"); return 0
     if args.command=="experiment":
+        # Experiments must refer to a known catalog hypothesis and contain usable,
+        # bounded text. This prevents typo/orphan records and oversized local data.
+        known_ids = {item.id for item in OPPORTUNITIES}
+        if args.opportunity not in known_ids:
+            p.exit(2, f"Experiment failed: unknown opportunity '{args.opportunity}'. Use 'elmatrix niches' to list valid IDs.\\n")
+        fields = {
+            "hypothesis": args.hypothesis.strip(),
+            "metric": args.metric.strip(),
+            "target": args.target.strip(),
+        }
+        limits = {"hypothesis": 2000, "metric": 200, "target": 500}
+        for name, value in fields.items():
+            if not value:
+                p.exit(2, f"Experiment failed: --{name.replace('_', '-')} must not be empty.\\n")
+            if len(value) > limits[name]:
+                p.exit(2, f"Experiment failed: --{name.replace('_', '-')} exceeds {limits[name]} characters.\\n")
         with open_db() as db:
-            db.execute("INSERT INTO experiments(opportunity_id,hypothesis,metric,target) VALUES(?,?,?,?)",(args.opportunity,args.hypothesis,args.metric,args.target))
+            db.execute(
+                "INSERT INTO experiments(opportunity_id,hypothesis,metric,target) VALUES(?,?,?,?)",
+                (args.opportunity, fields["hypothesis"], fields["metric"], fields["target"]),
+            )
         print("Experiment recorded. Add observations before treating the hypothesis as validated."); return 0
     if args.command=="research":
         try:
