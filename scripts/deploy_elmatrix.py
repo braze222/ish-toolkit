@@ -25,7 +25,7 @@ def _build_locked(output):
     with tempfile.TemporaryDirectory(prefix='elmatrix-build-') as tmp:
         staging = Path(tmp)
         (staging / 'lib' / 'elmatrix').mkdir(parents=True)
-        for relative in ('lib/__init__.py', 'lib/storage.py', 'lib/elmatrix/__init__.py', 'lib/elmatrix/cli.py'):
+        for relative in ('lib/__init__.py', 'lib/storage.py', 'lib/elmatrix/__init__.py', 'lib/elmatrix/cli.py', 'lib/elmatrix/assistant.py'):
             target = staging / relative
             target.write_bytes((ROOT / relative).read_bytes())
         (staging / '__main__.py').write_text('import sys\nif sys.version_info < (3, 10):\n    sys.exit("Elmatrix requires Python 3.10+")\nfrom lib.elmatrix.cli import main\nraise SystemExit(main())\n')

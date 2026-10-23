@@ -143,6 +143,7 @@ def test_deployment_independent_and_reinstall(home):
     assert snapshot['videos'][0]['views'] == '123'
     assert 'Cleaning tutorial' in packaged('report')
     assert len(json.loads(packaged('trends'))['observations']) == 1
+    assert json.loads(packaged('assist', '--model', 'opencode/free-test'))['execution'] == 'not started'
     packaged('purge', '--all')
     assert not list((home/'.elmatrix').glob('scan-*'))
 
@@ -203,3 +204,64 @@ def test_build_checksum_does_not_follow_existing_symlink(home):
     deploy.build(output)
     assert victim.read_text() == 'preserve'
     assert not (output/'SHA256SUMS').is_symlink()
+
+
+def test_assist_plan_is_offline(home, monkeypatch, capsys):
+    from lib.elmatrix import assistant
+    cli.main(['scan', '--input', str(imported(home))]); capsys.readouterr()
+    monkeypatch.setattr(cli, 'fetch', lambda *a, **k: pytest.fail('unexpected network'))
+    assert cli.main(['assist', '--model', 'opencode/free-test']) == 0
+    assert json.loads(capsys.readouterr().out)['execution'] == 'not started'
+    assert cli.main(['assist', '--model', 'opencode/free-test', '--execute']) == 2
+
+
+def test_assist_isolated_configuration_and_no_key_leak(home, monkeypatch, capsys):
+    from lib.elmatrix import assistant
+    cli.main(['scan', '--input', str(imported(home))]); capsys.readouterr()
+    monkeypatch.setenv('YOUTUBE_API_KEY', 'never-forward-youtube')
+    monkeypatch.setenv('UNRELATED_SECRET', 'never-forward-other')
+    monkeypatch.setattr(assistant.shutil, 'which', lambda x: '/trusted/opencode')
+    monkeypatch.setattr(cli, 'fetch', lambda *a, **k: {'opencode': {'models': {'free-test': {'cost': {'input': 0, 'output': 0}}}}})
+    def capture(command, env, cwd):
+        assert 'YOUTUBE_API_KEY' not in env and 'UNRELATED_SECRET' not in env
+        config = json.loads(env['OPENCODE_CONFIG_CONTENT'])
+        assert config['permission'] == 'deny'
+        assert json.loads(env['OPENCODE_PERMISSION']) == {'*': 'deny'}
+        assert config['agent']['research']['permission'] == 'deny'
+        assert config['model'] == config['small_model'] == 'opencode/free-test'
+        assert '--pure' in command and '--auto' not in command
+        assert env['HOME'] == cwd and not list(Path(cwd).iterdir())
+        return json.dumps({'type': 'text', 'part': {'text': 'Original concept for review.'}})
+    monkeypatch.setattr(assistant, 'capture', capture)
+    assert cli.main(['assist', '--model', 'opencode/free-test', '--execute', '--allow-remote']) == 0
+    assert json.loads(capsys.readouterr().out)['review_required'] is True
+
+
+def test_assist_rejects_paid_model(home, monkeypatch):
+    from lib.elmatrix import assistant
+    cli.main(['scan', '--input', str(imported(home))])
+    monkeypatch.setattr(assistant.shutil, 'which', lambda x: '/trusted/opencode')
+    monkeypatch.setattr(cli, 'fetch', lambda *a, **k: {})
+    monkeypatch.setattr(assistant, 'capture', lambda *a: pytest.fail('paid/unknown model executed'))
+    assert cli.main(['assist', '--model', 'opencode/paid', '--execute', '--allow-remote']) == 2
+
+
+def test_assist_timeout_and_output_bound(home):
+    from lib.elmatrix import assistant
+    with pytest.raises(cli.ResearchError):
+        assistant.capture([sys.executable, '-c', 'import time;time.sleep(10)'], dict(os.environ), home, timeout=.1)
+    with pytest.raises(cli.ResearchError):
+        assistant.capture([sys.executable, '-c', 'print("x"*1000)'], dict(os.environ), home, limit=100)
+
+
+def test_daily_demo_and_missing_live_key(home):
+    env = dict(os.environ)
+    output = home/'reports'
+    base = [sys.executable, str(ROOT/'scripts/elmatrix_daily.py'), '--output', str(output)]
+    missing = subprocess.run(base, env=env, capture_output=True, text=True)
+    assert missing.returncode != 0 and not output.exists()
+    result = subprocess.run(base + ['--demo'], env=env, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert json.loads((output/'STATUS.json').read_text())['mode'] == 'DEMO'
+    assert len(list(output.glob('*.md'))) == 3
+    assert json.loads((output/'cleaning.json').read_text())['source'] == 'imported-unverified'
