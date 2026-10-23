@@ -19,6 +19,8 @@ def main(argv=None):
     r=sub.add_parser("report",help="emit evidence-aware JSON report"); r.add_argument("--format",choices=["json"],default="json")
     e=sub.add_parser("experiment",help="record a validation experiment")
     e.add_argument("--opportunity",required=True); e.add_argument("--hypothesis",required=True); e.add_argument("--metric",required=True); e.add_argument("--target",required=True)
+    er=sub.add_parser("experiment-result",help="record an observed result for an existing experiment")
+    er.add_argument("--id",type=int,required=True); er.add_argument("--result",required=True)
     ex=sub.add_parser("export",help="export starter catalog"); ex.add_argument("--format",choices=["json","csv"],default="csv"); ex.add_argument("--output",required=True)
     research=sub.add_parser("research",help="collect a public RSS/Atom feed (network access is explicit)")
     research.add_argument("--feed",required=True); research.add_argument("--name",default=""); research.add_argument("--query",default=""); research.add_argument("--region",default="global"); research.add_argument("--timeout",type=int,default=8); research.add_argument("--limit",type=int,default=50)
@@ -34,9 +36,41 @@ def main(argv=None):
     if args.command=="init":
         db=open_db(); db.close(); print(f"Initialized local store: {Path(os.environ.get('ELMATRIX_HOME',Path.home()/'.elmatrix-standalone'))}"); return 0
     if args.command=="experiment":
+        # Experiments must refer to a known catalog hypothesis and contain usable,
+        # bounded text. This prevents typo/orphan records and oversized local data.
+        known_ids = {item.id for item in OPPORTUNITIES}
+        if args.opportunity not in known_ids:
+            p.exit(2, f"Experiment failed: unknown opportunity '{args.opportunity}'. Use 'elmatrix niches' to list valid IDs.\\n")
+        fields = {
+            "hypothesis": args.hypothesis.strip(),
+            "metric": args.metric.strip(),
+            "target": args.target.strip(),
+        }
+        limits = {"hypothesis": 2000, "metric": 200, "target": 500}
+        for name, value in fields.items():
+            if not value:
+                p.exit(2, f"Experiment failed: --{name.replace('_', '-')} must not be empty.\\n")
+            if len(value) > limits[name]:
+                p.exit(2, f"Experiment failed: --{name.replace('_', '-')} exceeds {limits[name]} characters.\\n")
         with open_db() as db:
-            db.execute("INSERT INTO experiments(opportunity_id,hypothesis,metric,target) VALUES(?,?,?,?)",(args.opportunity,args.hypothesis,args.metric,args.target))
-        print("Experiment recorded. Add observations before treating the hypothesis as validated."); return 0
+            cur = db.execute(
+                "INSERT INTO experiments(opportunity_id,hypothesis,metric,target) VALUES(?,?,?,?)",
+                (args.opportunity, fields["hypothesis"], fields["metric"], fields["target"]),
+            )
+            experiment_id = cur.lastrowid
+        print(f"Experiment #{experiment_id} recorded. Add observed results with 'experiment-result --id {experiment_id} --result ...'. Recording a result does not itself validate the hypothesis."); return 0
+    if args.command=="experiment-result":
+        result = " ".join(args.result.split())
+        if not result:
+            p.exit(2, "Experiment result failed: --result must not be empty.\\n")
+        if len(result) > 2000:
+            p.exit(2, "Experiment result failed: --result exceeds 2000 characters.\\n")
+        with open_db() as db:
+            cur = db.execute("UPDATE experiments SET result=? WHERE id=?", (result, args.id))
+            if not cur.rowcount:
+                p.exit(2, f"Experiment result failed: unknown experiment ID {args.id}.\\n")
+        print(f"Observed result saved for experiment #{args.id}. Interpret it against the predeclared metric and target; this is not an automatic validation verdict.")
+        return 0
     if args.command=="research":
         try:
             items=collect_feed(args.feed,source_name=args.name or None,query=args.query,region=args.region,timeout=args.timeout,limit=args.limit)
