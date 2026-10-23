@@ -1,0 +1,46 @@
+name: Elmatrix standalone tests
+
+on:
+  push:
+    branches: [main, "elmatrix/**"]
+    paths:
+      - "elmatrix-standalone/**"
+      - ".github/workflows/elmatrix-standalone.yml"
+  pull_request:
+    paths:
+      - "elmatrix-standalone/**"
+      - ".github/workflows/elmatrix-standalone.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    defaults:
+      run:
+        working-directory: elmatrix-standalone
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install package without runtime dependencies
+        run: python -m pip install --no-deps .
+      - name: Run offline test suite
+        run: python -m unittest discover -s tests -v
+      - name: Smoke-test CLI
+        run: |
+          export ELMATRIX_HOME="$RUNNER_TEMP/elmatrix-test-home"
+          cd "$RUNNER_TEMP"
+          elmatrix init
+          elmatrix niches > "$RUNNER_TEMP/niches.json"
+          elmatrix report > "$RUNNER_TEMP/report.json"
+          python -c "import json; assert len(json.load(open('$RUNNER_TEMP/niches.json'))) >= 22"
+          python -c "import json; assert len(json.load(open('$RUNNER_TEMP/report.json'))['results']) >= 22"
