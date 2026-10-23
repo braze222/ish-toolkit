@@ -13,7 +13,10 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--full', action='store_true', help='Also exercise Argon2, vault rotation and encrypted vault recovery; slower on iSH')
     parser.add_argument('--control', action='store_true', help='Only stdlib storage and compute tests; no crypto packages needed')
+    parser.add_argument('--skip-artifacts', action='store_true', help='Explicitly omit artifact test on constrained runtimes; incompatible with --full')
     args = parser.parse_args(argv)
+    if args.full and args.skip_artifacts:
+        parser.error('--full requires artifact verification')
     if args.control and args.full:
         parser.error('--control and --full are mutually exclusive')
     if not args.control:
@@ -60,15 +63,19 @@ def main(argv=None):
             from lib.orchestration import engine
             job = engine.submit({'command': [sys.executable, '-c',
                 'from pathlib import Path; print("compute-selftest"); Path("result.txt").write_text("expected")'],
-                'backend': 'local', 'timeout': 30, 'outputs': ['result.txt']}, execute=True)
-            if job['state'] != 'completed':
+                'backend': 'local', 'timeout': 30, 'outputs': [] if args.skip_artifacts else ['result.txt']}, execute=True)
+            if job['state'] != 'completed' or job.get('exit_code') != 0:
                 raise RuntimeError('local compute execution failed or unknown')
             if 'compute-selftest' not in engine.logs(job['id'])['text']:
                 raise RuntimeError('compute log retrieval failed')
-            engine.artifacts(job['id'], base / 'compute-result')
-            if (base / 'compute-result/result.txt').read_text() != 'expected':
-                raise RuntimeError('compute artifact round trip failed')
-            print('PASS: isolated local compute job, logs and artifact retrieval (no remote accounts used)', flush=True)
+            print('PASS: isolated local compute job and log retrieval', flush=True)
+            if args.skip_artifacts:
+                print('NOT TESTED: artifact retrieval (explicit --skip-artifacts).', flush=True)
+            else:
+                engine.artifacts(job['id'], base / 'compute-result')
+                if (base / 'compute-result/result.txt').read_text() != 'expected':
+                    raise RuntimeError('artifact round trip failed')
+                print('PASS: artifact retrieval', flush=True)
             if args.full:
                 print('Testing vault encryption and transactional rotation (may take time on iSH)...', flush=True)
                 vault = VaultStore()

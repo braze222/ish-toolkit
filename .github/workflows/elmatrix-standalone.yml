@@ -18,6 +18,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -26,8 +27,8 @@ jobs:
       run:
         working-directory: elmatrix-standalone
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install package without runtime dependencies
@@ -37,6 +38,7 @@ jobs:
       - name: Smoke-test CLI
         run: |
           export ELMATRIX_HOME="$RUNNER_TEMP/elmatrix-test-home"
+          cd "$RUNNER_TEMP"
           elmatrix init
           elmatrix niches > "$RUNNER_TEMP/niches.json"
           elmatrix report > "$RUNNER_TEMP/report.json"

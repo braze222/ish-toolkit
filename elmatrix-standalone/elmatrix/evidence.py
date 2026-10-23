@@ -36,12 +36,18 @@ def utc_now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 def canonicalize_url(url: str) -> str:
-    p = urlparse(url.strip())
+    if not isinstance(url, str) or len(url) > 4096 or any(ord(c) < 33 for c in url):
+        raise ValueError("URL contains whitespace/control characters or exceeds limits.")
+    p = urlparse(url)
     if p.scheme not in ("http", "https") or not p.hostname:
         raise ValueError("Only absolute HTTP(S) URLs are supported.")
     if p.username or p.password:
         raise ValueError("URLs containing credentials are not allowed.")
     host = p.hostname.lower()
+    if "%" in host:
+        raise ValueError("Scoped IP addresses are not supported.")
+    if ":" in host:
+        host = "[" + host + "]"
     port = p.port
     netloc = host if not port or (p.scheme == "http" and port == 80) or (p.scheme == "https" and port == 443) else f"{host}:{port}"
     # Tracking query parameters are removed; meaningful query parameters remain.
@@ -88,8 +94,15 @@ def _text(node, names):
 def _parse_date(value):
     if not value:
         return ""
+    value = value.strip()
+    if not value:
+        return ""
     try:
-        d = parsedate_to_datetime(value)
+        # Atom uses ISO 8601/RFC 3339; RSS commonly uses email-style dates.
+        try:
+            d = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except (TypeError, ValueError, OverflowError):
+            d = parsedate_to_datetime(value)
         if d.tzinfo is None:
             d = d.replace(tzinfo=timezone.utc)
         return d.astimezone(timezone.utc).isoformat(timespec="seconds")
@@ -99,6 +112,8 @@ def _parse_date(value):
 def parse_rss(xml_bytes: bytes, feed_url: str, *, source_name=None, query="", region="global", retrieved_at=None, limit=MAX_ITEMS):
     if len(xml_bytes) > MAX_FEED_BYTES:
         raise ValueError("Feed exceeds 2 MB limit.")
+    if b"\x00" in xml_bytes or re.search(br"<!\s*(DOCTYPE|ENTITY)\b", xml_bytes, re.I):
+        raise ValueError("DTD/entity declarations and NUL-encoded XML are not accepted.")
     try:
         root = ET.fromstring(xml_bytes)
     except ET.ParseError as exc:
@@ -112,7 +127,7 @@ def parse_rss(xml_bytes: bytes, feed_url: str, *, source_name=None, query="", re
         if is_atom:
             title = _text(node, ["{*}title"])
             summary = _text(node, ["{*}summary", "{*}content"])
-            link_node = node.find("{*}link")
+            link_node = next((n for n in node.findall("{*}link") if n.get("rel", "alternate") == "alternate"), None)
             link = link_node.attrib.get("href", "") if link_node is not None else ""
             published = _text(node, ["{*}published", "{*}updated"])
         else:
@@ -143,11 +158,37 @@ def parse_rss(xml_bytes: bytes, feed_url: str, *, source_name=None, query="", re
 def open_db(path=None):
     if path is None:
         home = Path(os.environ.get("ELMATRIX_HOME", Path.home()/".elmatrix-standalone"))
+        if home.is_symlink() or any(x.is_symlink() for x in home.absolute().parents):
+            raise ValueError("Storage directory must not contain symlinks.")
         home.mkdir(mode=0o700, parents=True, exist_ok=True)
         try: home.chmod(0o700)
         except OSError: pass
         path = home / "elmatrix.sqlite3"
+    path = Path(path)
+    if any(parent.is_symlink() for parent in path.absolute().parents):
+        raise ValueError("Database parents must not be symlinks.")
+    import stat
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != os.getuid():
+            raise ValueError("Database must be an owned regular file with one link.")
+        os.fchmod(fd, 0o600)
+    finally:
+        os.close(fd)
+    for suffix in ('-journal', '-wal', '-shm'):
+        sidecar = Path(str(path) + suffix)
+        if sidecar.is_symlink() or (sidecar.exists() and (not sidecar.is_file() or sidecar.stat().st_nlink != 1)):
+            raise ValueError("Unsafe database sidecar.")
     db = sqlite3.connect(str(path))
+    try:
+        if db.execute("SELECT 1 FROM sqlite_master WHERE name='schema_meta'").fetchone():
+            versions = db.execute("SELECT version FROM schema_meta").fetchall()
+            if versions != [(1,)]:
+                raise ValueError("Unsupported database schema; preserve data and use a compatible version.")
+    except BaseException:
+        db.close()
+        raise
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA foreign_keys=ON")
     db.executescript("""
@@ -171,20 +212,12 @@ def open_db(path=None):
     return db
 
 def fetch_rss(url, *, timeout=8, max_bytes=MAX_FEED_BYTES):
-    canonical = validate_public_url(url)
-    request = Request(canonical, headers={"User-Agent": USER_AGENT, "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml"})
-    try:
-        opener = build_opener(_SafeRedirectHandler())
-        with opener.open(request, timeout=max(1, min(int(timeout), 15))) as response:
-            final_url = validate_public_url(response.geturl())
-            data = response.read(max_bytes + 1)
-    except ValueError:
-        raise
-    except (HTTPError, URLError, TimeoutError, OSError) as exc:
-        raise RuntimeError(f"Feed fetch failed for {canonical}: {type(exc).__name__}") from exc
-    if len(data) > max_bytes:
-        raise ValueError(f"Feed exceeds {max_bytes} byte limit.")
-    return data, canonicalize_url(final_url)
+    from .transport import fetch
+    if type(timeout) is not int or not 1 <= timeout <= 15:
+        raise ValueError("Timeout must be 1–15 seconds.")
+    if type(max_bytes) is not int or not 1 <= max_bytes <= MAX_FEED_BYTES:
+        raise ValueError("Invalid response byte limit.")
+    return fetch(url, canonicalize_url, timeout=timeout, max_bytes=max_bytes, user_agent=USER_AGENT)
 
 def collect_feed(url, *, source_name=None, query="", region="global", timeout=8, limit=MAX_ITEMS):
     data, feed_url = fetch_rss(url, timeout=timeout)

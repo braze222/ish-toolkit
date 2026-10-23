@@ -8,9 +8,10 @@ import shlex
 import shutil
 import sys
 import tempfile
+import stat
 
 ROOT = Path(__file__).resolve().parent.parent
-TOOLS = ('ish', 'ish-db', 'ish-doctor', 'ish-compute', 'ish-workspace', 'ish-backup', 'ish-selftest', 'vault', 'totp', 'crypt', 'shred')
+TOOLS = ('ish', 'ish-db', 'ish-doctor', 'ish-compute', 'ish-workspace', 'ish-backup', 'ish-selftest', 'ish-verify', 'vault', 'totp', 'crypt', 'shred')
 
 
 def main():
@@ -23,7 +24,7 @@ def main():
     modules = ['sqlite3', 'fcntl']
     if args.profile == 'full':
         modules += ['cryptography.hazmat.primitives.ciphers.aead', 'argon2.low_level', 'pyotp']
-    tools = TOOLS + ('ish-compatibility',) if args.profile == 'full' else ('ish', 'ish-compute', 'ish-compatibility')
+    tools = TOOLS + ('ish-compatibility',) if args.profile == 'full' else ('ish', 'ish-compute', 'ish-compatibility', 'ish-verify')
     for module in modules:
         try:
             importlib.import_module(module)
@@ -32,19 +33,34 @@ def main():
     for directory in ('lib', 'tools'):
         for path in (ROOT / directory).rglob('*.py'):
             compile(path.read_text(), str(path), 'exec')
+    for name in tools:
+        source = ROOT / 'tools' / (name + '.py')
+        if source.is_symlink() or not source.is_file():
+            parser.error(f'Missing or unsafe tool source: {name}')
     bindir = args.bin_dir.expanduser().absolute()
     bindir.mkdir(parents=True, exist_ok=True)
     for name in tools:
         target = bindir / name
-        if target.is_dir() and not target.is_symlink():
-            parser.error(f'Cannot replace directory: {target}')
+        if target.exists() and not target.is_symlink() and not stat.S_ISREG(target.lstat().st_mode):
+            parser.error(f'Cannot replace non-regular launcher: {target}')
     backup = Path(tempfile.mkdtemp(prefix='ish-toolkit-install-backup-', dir=bindir))
-    installed = []
+    originals = {}
+    replaced = []
     try:
         for name in tools:
             target = bindir / name
-            if target.exists() or target.is_symlink():
-                shutil.copy2(target, backup / name, follow_symlinks=False)
+            existed = target.exists() or target.is_symlink()
+            saved = backup / name
+            if existed:
+                if target.is_symlink():
+                    originals[name] = ('symlink', os.readlink(target))
+                    os.symlink(originals[name][1], saved)
+                else:
+                    originals[name] = ('file', None)
+                    shutil.copy2(target, saved, follow_symlinks=False)
+            else:
+                originals[name] = ('absent', None)
+
             content = ('#!/bin/sh\nexec ' + shlex.quote(sys.executable) + ' ' +
                        shlex.quote(str(ROOT / 'tools' / (name + '.py'))) + ' "$@"\n')
             fd, temp = tempfile.mkstemp(prefix='.ish-install-', dir=bindir)
@@ -52,18 +68,35 @@ def main():
                 with os.fdopen(fd, 'w') as handle:
                     handle.write(content)
                 os.chmod(temp, 0o700)
+                # Track before replacement so rollback covers a failure
+                # immediately after the filesystem operation.
+                replaced.append(name)
                 os.replace(temp, target)
-                installed.append(name)
             finally:
                 if os.path.exists(temp):
                     os.unlink(temp)
-    except Exception:
-        for name in installed:
+    except (Exception, KeyboardInterrupt) as install_error:
+        rollback_errors = []
+        for name in reversed(replaced):
             target = bindir / name
-            target.unlink()
-            saved = backup / name
-            if saved.exists() or saved.is_symlink():
-                shutil.copy2(saved, target, follow_symlinks=False)
+            kind, link_target = originals[name]
+            try:
+                if target.exists() or target.is_symlink():
+                    if target.is_dir() and not target.is_symlink():
+                        raise IsADirectoryError(str(target))
+                    target.unlink()
+                if kind == 'symlink':
+                    os.symlink(link_target, target)
+                elif kind == 'file':
+                    shutil.copy2(backup / name, target, follow_symlinks=False)
+            except Exception as rollback_error:
+                rollback_errors.append(f'{name}: {rollback_error}')
+        if rollback_errors:
+            raise RuntimeError(
+                f'Installation failed: {install_error}; rollback also failed: '
+                + '; '.join(rollback_errors)
+                + f'; recovery backups retained at {backup}'
+            ) from install_error
         raise
     import platform
     print(f'Platform: {platform.system()} {platform.machine()} {platform.release()}')

@@ -1,5 +1,6 @@
 """Command-line entry point for standalone Elmatrix."""
-import argparse, csv, json, os
+import argparse, csv, json, os, sqlite3
+from contextlib import closing
 from pathlib import Path
 from .engine import OPPORTUNITIES, match_opportunities
 from .evidence import open_db, collect_feed, save_evidence, list_evidence
@@ -7,7 +8,7 @@ from .ranking import rank_with_evidence
 from .reviews import review_evidence, list_reviews, withdraw_review
 from . import __version__
 
-def main(argv=None):
+def _main(argv=None):
     p=argparse.ArgumentParser(prog="elmatrix", description="Standalone niche matching and validation")
     p.add_argument("--version", action="version", version=f"Elmatrix {__version__}")
     sub=p.add_subparsers(dest="command", required=True)
@@ -34,7 +35,11 @@ def main(argv=None):
     if args.command=="init":
         db=open_db(); db.close(); print(f"Initialized local store: {Path(os.environ.get('ELMATRIX_HOME',Path.home()/'.elmatrix-standalone'))}"); return 0
     if args.command=="experiment":
-        with open_db() as db:
+        if args.opportunity not in {x.id for x in OPPORTUNITIES}:
+            p.error("Unknown opportunity ID.")
+        if any(not x.strip() or len(x) > 2000 for x in (args.hypothesis,args.metric,args.target)):
+            p.error("Experiment fields must contain 1–2000 characters.")
+        with closing(open_db()) as db, db:
             db.execute("INSERT INTO experiments(opportunity_id,hypothesis,metric,target) VALUES(?,?,?,?)",(args.opportunity,args.hypothesis,args.metric,args.target))
         print("Experiment recorded. Add observations before treating the hypothesis as validated."); return 0
     if args.command=="research":
@@ -43,7 +48,7 @@ def main(argv=None):
             count=save_evidence(items)
         except (ValueError,RuntimeError) as exc:
             p.exit(2,f"Research failed; no successful report was generated: {exc}\n")
-        print(json.dumps({"feed":args.feed,"parsed":len(items),"new_saved":count,"note":"Published items are source-linked observations, not proof of demand or profitability."},indent=2)); return 0
+        print(json.dumps({"parsed":len(items),"new_saved":count,"note":"Published items are source-linked observations, not proof of demand or profitability."},indent=2)); return 0
     if args.command=="evidence":
         print(json.dumps(list_evidence(limit=args.limit),indent=2,ensure_ascii=False)); return 0
     if args.command=="review":
@@ -62,15 +67,70 @@ def main(argv=None):
     elif args.command=="report":
         print(json.dumps(rank_with_evidence(),indent=2,ensure_ascii=False)); return 0
     elif args.command=="export":
-        rows=[x.to_dict() for x in OPPORTUNITIES]
-        dest=Path(args.output)
-        if args.format=="json": dest.write_text(json.dumps(rows,indent=2),encoding="utf-8")
-        else:
-            with dest.open("w",newline="",encoding="utf-8") as f:
-                w=csv.DictWriter(f,fieldnames=list(rows[0].keys())); w.writeheader()
-                for row in rows: w.writerow({k:json.dumps(v) if isinstance(v,list) else v for k,v in row.items()})
-        print(f"Exported {len(rows)} hypotheses to {dest}"); return 0
+        import tempfile
+
+        rows = [x.to_dict() for x in OPPORTUNITIES]
+        dest = Path(args.output)
+        temp_path = None
+
+        try:
+            # Create a temporary file in the destination directory.
+            # The temporary file is ours; the destination is never opened
+            # for writing directly.
+            parent = dest.parent
+            fd, temp_name = tempfile.mkstemp(
+                prefix=".elmatrix-export-",
+                suffix=".tmp",
+                dir=str(parent),
+            )
+            temp_path = Path(temp_name)
+
+            with os.fdopen(fd, "w", newline="", encoding="utf-8") as f:
+                if args.format == "json":
+                    json.dump(rows, f, indent=2, ensure_ascii=False)
+                    f.write("\n")
+                else:
+                    writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+                    writer.writeheader()
+                    for row in rows:
+                        writer.writerow({
+                            k: json.dumps(v, ensure_ascii=False)
+                            if isinstance(v, (list, dict)) else v
+                            for k, v in row.items()
+                        })
+                f.flush()
+                os.fsync(f.fileno())
+
+            # Atomic no-overwrite publication on the tested filesystem.
+            # Existing files and symlinks must remain untouched.
+            os.link(str(temp_path), str(dest))
+
+        except FileExistsError:
+            p.exit(2, f"Export refused: destination already exists: {dest}\n")
+        except OSError as exc:
+            p.exit(2, f"Export failed: {exc}\n")
+        finally:
+            if temp_path is not None:
+                try:
+                    temp_path.unlink()
+                except FileNotFoundError:
+                    pass
+                except OSError:
+                    pass
+
+        print(f"Exported {len(rows)} hypotheses to {dest}")
+        return 0
     else: rows=match_opportunities()
     print(json.dumps(rows,indent=2,ensure_ascii=False))
     return 0
+def main(argv=None):
+    try:
+        return _main(argv)
+    except (sqlite3.Error, OSError):
+        print("Elmatrix: storage or network unavailable; preserve data and check paths/permissions.", file=__import__('sys').stderr)
+        return 2
+    except (ValueError, RuntimeError):
+        print("Elmatrix: invalid input or unsupported storage/runtime; check arguments and schema.", file=__import__('sys').stderr)
+        return 2
+
 if __name__=="__main__": raise SystemExit(main())

@@ -43,6 +43,10 @@ _SEEDS=[
 OPPORTUNITIES=[Opportunity(*row) for row in _SEEDS]
 
 def match_opportunities(opportunities:Iterable[Opportunity]=OPPORTUNITIES,*,budget=0,hours=5,skills=(),models=(),region="global"):
+    if type(budget) is not int or not 0 <= budget <= 10**9 or type(hours) is not int or not 1 <= hours <= 168:
+        raise ValueError("Budget must be 0–1000000000; hours must be 1–168.")
+    if not isinstance(region, str) or not region.strip() or len(region) > 80:
+        raise ValueError("Region must contain 1–80 characters.")
     skills={str(x).strip().lower() for x in skills if str(x).strip()}
     models={str(x).strip().lower() for x in models if str(x).strip()}
     region=region.strip().lower()
@@ -52,12 +56,17 @@ def match_opportunities(opportunities:Iterable[Opportunity]=OPPORTUNITIES,*,budg
         time_fit=5 if item.hours_per_week<=hours else max(0,5-(item.hours_per_week-hours))
         skill_fit=3 if not skills else min(5,2+len(skills.intersection(item.skills)))
         model_fit=3 if not models else min(5,2+len(models.intersection(item.models)))
-        region_fit=5 if region in item.regions or "global" in item.regions or region=="global" else 2
-        factors={"demand_hypothesis":item.demand,"monetization_hypothesis":item.monetization,"customer_pain_hypothesis":item.pain,
-          "feasibility_hypothesis":item.feasibility,"competition_fit":6-item.competition,"cost_fit":cost_fit,"time_fit":time_fit,
-          "skill_fit":skill_fit,"model_fit":model_fit,"region_fit":region_fit,"evidence_confidence":item.confidence}
+        region_fit=5 if region in {x.lower() for x in item.regions} or "global" in item.regions or region=="global" else 2
+        # Only user constraints contribute to the fit score. Seeded market
+        # ratings remain visible as hypotheses, not as observed evidence.
+        factors={"cost_fit":cost_fit,"time_fit":time_fit,"skill_fit":skill_fit,
+          "model_fit":model_fit,"region_fit":region_fit}
         score=round(sum(factors.values())/len(factors)*20,1)
         results.append({**item.to_dict(),"score":score,"score_factors":factors,
-          "score_type":"heuristic fit; not measured demand, verified profitability, or a revenue forecast",
+          "market_hypotheses_not_scored":{
+            "demand":item.demand,"monetization":item.monetization,
+            "customer_pain":item.pain,"feasibility":item.feasibility,
+            "competition":item.competition,"confidence":item.confidence},
+          "score_type":"constraint-fit heuristic; not measured demand, verified profitability, or a revenue forecast",
           "evidence_status":"unverified hypothesis"})
     return sorted(results,key=lambda r:(-r["score"],r["title"]))

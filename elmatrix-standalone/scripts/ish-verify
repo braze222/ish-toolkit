@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+"""Offline-first verification for the standalone Elmatrix checkout."""
+
+import compileall
+import os
+import subprocess
+import sys
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+os.chdir(ROOT)
+
+results = []
+
+def check(name, command):
+    print(f"\n[RUN ] {name}", flush=True)
+    try:
+        result = subprocess.run(command, cwd=ROOT, check=False)
+        passed = result.returncode == 0
+    except OSError as exc:
+        print(f"       Could not run: {exc}")
+        passed = False
+
+    results.append((name, passed))
+    print(f"[{'PASS' if passed else 'FAIL'}] {name}", flush=True)
+
+def main():
+    print("ELMATRIX / iSH TOOLKIT VERIFICATION")
+    print(f"Python: {sys.version.split()[0]}")
+    print(f"Root:   {ROOT}")
+
+    print("\n[RUN ] Python syntax")
+    syntax_ok = compileall.compile_dir(
+        str(ROOT / "elmatrix"),
+        quiet=1,
+        force=True,
+    )
+    results.append(("Python syntax", syntax_ok))
+    print(f"[{'PASS' if syntax_ok else 'FAIL'}] Python syntax")
+
+    check(
+        "Unit tests",
+        [
+            sys.executable, "-c",
+            "import sys,unittest; s=unittest.defaultTestLoader.discover('tests'); "
+            "n=s.countTestCases(); r=unittest.TextTestRunner(verbosity=2).run(s); "
+            "sys.exit(0 if n > 0 and r.wasSuccessful() else 1)",
+        ],
+    )
+
+    print("\n=== SUMMARY ===")
+    for name, passed in results:
+        print(f"[{'PASS' if passed else 'FAIL'}] {name}")
+
+    failed = [name for name, passed in results if not passed]
+    print(f"\nPassed: {len(results) - len(failed)} / {len(results)}")
+    if failed:
+        print("Verification FAILED: " + ", ".join(failed))
+        return 1
+
+    print("Verification PASSED.")
+    return 0
+
+if __name__ == "__main__":
+    raise SystemExit(main())
