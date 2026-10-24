@@ -252,3 +252,13 @@ Sources:
 - https://huggingface.co/docs/inference-providers/pricing
 - https://platform.arena.ai/docs/claude-code
 - https://platform.arena.ai/docs/opencode
+
+### Colab Pillow import conflicts
+
+If a prior notebook version fails to import `PIL._typing._Ink`, it may have loaded
+Pillow modules before the setup cell changed the installed version. The updated
+notebook keeps the renderer source as data and runs it with a fresh isolated Python
+process (`python -I`), so notebook module caches are not used by rendering. Open the
+updated repository notebook rather than an older Drive copy. Run the cells in order.
+The subprocess shows its real error if the on-disk package installation is also broken;
+this change does not hide errors or declare failed renders successful.

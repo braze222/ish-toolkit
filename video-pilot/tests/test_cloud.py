@@ -95,7 +95,9 @@ class CloudTests(unittest.TestCase):
     def test_notebook_embeds_exact_reviewed_renderer(self):
         folder = Path(__file__).resolve().parents[1]
         notebook = json.loads((folder / 'Colab_Render.ipynb').read_text())
-        self.assertEqual(''.join(notebook['cells'][2]['source']), (folder / 'cloud_video.py').read_text())
+        scope = {}
+        exec(''.join(notebook['cells'][2]['source']), scope)
+        self.assertEqual(scope['_ELMATRIX_RENDERER_SOURCE'], (folder / 'cloud_video.py').read_text())
         for cell in notebook['cells']:
             if cell['cell_type'] == 'code': compile(''.join(cell['source']), '<notebook>', 'exec')
 
