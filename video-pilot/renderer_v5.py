@@ -216,7 +216,7 @@ def render(job_zip,output_zip):
             if entry.filename=='project.json':
                 if entry.file_size>65536: raise RenderError('project.json exceeds 64 KiB')
                 continue
-            if not re.fullmatch(r'assets/scene-[0-9]{2}\\.(png|jpg|jpeg)',entry.filename): raise RenderError('Optional assets must be assets/scene-01.png, scene-02.jpg, etc.')
+            if not re.fullmatch(r'assets/scene-[0-9]{2}\.(png|jpg|jpeg)',entry.filename): raise RenderError('Optional assets must be assets/scene-01.png, scene-02.jpg, etc.')
             if entry.filename in asset_bytes: raise RenderError('Duplicate asset path')
             asset_bytes[entry.filename]=z.read(entry.filename)
         if total_size>MAX_INPUT: raise RenderError('Total job ZIP contents exceed 32 MiB')
