@@ -33,6 +33,9 @@ def validate(data):
             raise RenderError('Invalid '+k)
         out[k]=v.strip()
     if not out['title'].isascii() or not out['script'].isascii(): raise RenderError('Studio v5 currently requires an English ASCII title and script')
+    niche=data.get('niche','general')
+    if not isinstance(niche,str) or len(niche)>40: raise RenderError('Invalid niche')
+    out['niche']=niche.lower().strip()
     return out
 def fingerprint(data): return hashlib.sha256(canonical(validate(data))).hexdigest()
 
@@ -98,12 +101,19 @@ def visual_role(i,total,text):
     if '?' in text: return 'QUESTION','ASK YOURSELF'
     return 'INSIGHT',f'IDEA {i-1:02d}'
 
-def draw_scene(path,project_title,text,index,total):
-    im=Image.new('RGB',(W,H)); px=im.load()
-    # Deep gradient plus scene-specific luminous accent, all original artwork.
-    for y in range(H):
-        t=y/(H-1); c=(int(BG[0]*(1-t)+20*t),int(BG[1]*(1-t)+39*t),int(BG[2]*(1-t)+67*t))
-        for x in range(W): px[x,y]=c
+def draw_scene(path,project_title,text,index,total,role_override=None,art_path=None):
+    if art_path and Path(art_path).is_file():
+        art=Image.open(art_path).convert('RGB')
+        scale=max(W/art.width,H/art.height)
+        art=art.resize((int(art.width*scale),int(art.height*scale)),Image.Resampling.LANCZOS)
+        left=(art.width-W)//2; top=(art.height-H)//2
+        im=art.crop((left,top,left+W,top+H))
+        im=ImageEnhance.Brightness(im).enhance(0.42)
+    else:
+        im=Image.new('RGB',(W,H)); px=im.load()
+        for y in range(H):
+            t=y/(H-1); c=(int(BG[0]*(1-t)+20*t),int(BG[1]*(1-t)+39*t),int(BG[2]*(1-t)+67*t))
+            for x in range(W): px[x,y]=c
     d=ImageDraw.Draw(im)
     accents=[(24,91,96),(48,66,117),(76,54,104),(22,99,79),(105,72,37),(40,83,105)]
     accent=accents[(index-1)%len(accents)]
@@ -215,12 +225,20 @@ def render(job_zip,output_zip):
     voice=os.environ.get('ELMATRIX_NEURAL_VOICE','en-ZA-LeahNeural')
     rate=os.environ.get('ELMATRIX_VOICE_RATE','-8%')
     pitch=os.environ.get('ELMATRIX_VOICE_PITCH','+0Hz')
-    with tempfile.TemporaryDirectory(prefix='elmatrix-studio-v4-') as td:
-        root=Path(td); audios=[]; videos=[]
+    with tempfile.TemporaryDirectory(prefix='elmatrix-studio-v5-') as td:
+        root=Path(td); audios=[]; videos=[]; art_paths={}
+        for name,blob in asset_bytes.items():
+            dest=root/Path(name).name; dest.write_bytes(blob)
+            try:
+                with Image.open(dest) as check:
+                    if check.width<256 or check.height<256 or check.width>4096 or check.height>4096: raise RenderError('Scene images must be 256–4096 pixels per side')
+                    check.verify()
+            except (OSError,ValueError) as exc: raise RenderError('Invalid optional scene image: '+name) from exc
+            art_paths[int(re.search(r'scene-([0-9]{2})',name).group(1))]=dest
         voice_used='unknown'
         for i,narration in enumerate(scenes,1):
             wav=root/f'audio-{i:02d}.wav'; png=root/f'scene-{i:02d}.png'; mp4=root/f'segment-{i:02d}.mp4'
-            draw_scene(png,data['title'],narration,i,len(scenes))
+            draw_scene(png,data['title'],narration,i,len(scenes),storyboard[i-1]['role'],art_paths.get(i))
             used=synthesize(narration,wav,voice,rate,pitch,engine)
             if i==1: voice_used=used
             # Normalize every voice engine to the same PCM format before concat; eSpeak and neural TTS differ by default.
