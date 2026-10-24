@@ -212,7 +212,7 @@ def render(job_zip,output_zip):
             cursor+=adur
         with srt.open('w',encoding='utf-8') as out:
             for number,(start,end,caption) in enumerate(cues,1):
-                out.write(f'{number}\\n{stamp(start)} --> {stamp(end)}\\n{caption}\\n\\n')
+                out.write(f'{number}\n{stamp(start)} --> {stamp(end)}\n{caption}\n\n')
         vf="subtitles="+str(srt)+":force_style='FontName=DejaVu Sans,FontSize=19,PrimaryColour=&H00FFFFFF,OutlineColour=&H0010182A,BorderStyle=3,Outline=2,Shadow=0,MarginV=190'"
         run(['ffmpeg','-nostdin','-v','error','-y','-i',str(jv),'-vf',vf,'-an','-c:v','libx264','-preset','veryfast','-crf','21','-pix_fmt','yuv420p',str(silent)],timeout=600)
         run(['ffmpeg','-nostdin','-v','error','-y','-i',str(silent),'-i',str(ja),'-map','0:v:0','-map','1:a:0','-c:v','copy','-c:a','aac','-b:a','128k','-shortest','-movflags','+faststart',str(final)],timeout=300)
