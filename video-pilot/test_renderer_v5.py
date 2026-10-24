@@ -13,5 +13,5 @@ class StoryboardTests(unittest.TestCase):
   p=m.build_storyboard("Title"," ".join(f"Sentence {i}." for i in range(30)))
   self.assertLessEqual(len(p),8); self.assertGreaterEqual(len(p),1)
  def test_safe_asset_paths(self):
-  self.assertIsNotNone(__import__('re').fullmatch(r'assets/scene-[0-9]{2}\\.(png|jpg|jpeg)','assets/scene-01.png'))
+  self.assertIsNotNone(__import__('re').fullmatch(r'assets/scene-[0-9]{2}\.(png|jpg|jpeg)','assets/scene-01.png'))
 if __name__=="__main__": unittest.main()
