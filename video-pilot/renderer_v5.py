@@ -59,7 +59,7 @@ NICHE_PROMPTS = {
  'general': {'HOOK':'Intriguing real-world moment that makes the viewer curious','CONTEXT':'Natural editorial scene establishing the subject','STEP':'Clear visual metaphor or practical demonstration','OBJECTION':'Visual contrast clarifying a common question or mistake','TAKEAWAY':'Satisfying optimistic image reinforcing the key point'}
 }
 def build_storyboard(title,script,niche='general'):
-    parts=[x.strip() for x in re.split(r'(?<=[.!?])\\s+',script.strip()) if x.strip()]
+    parts=[x.strip() for x in re.split(r'(?<=[.!?])\s+',script.strip()) if x.strip()]
     if not parts: parts=[script.strip()]
     groups=[]; current=''
     for part in parts:
