@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import cloud_video
 
 SCOPES = ['https://www.googleapis.com/auth/youtube.upload',
           'https://www.googleapis.com/auth/youtube.readonly']
@@ -84,6 +85,8 @@ def probe(path):
 
 
 def render(path, image, audio):
+    if cloud_video.is_ish():
+        raise VideoError('Local rendering disabled on iSH. Use prepare-cloud and the browser notebook.')
     root, data = project(path)
     if not shutil.which('ffmpeg') or not shutil.which('ffprobe'):
         raise VideoError('Install ffmpeg and ffprobe on the rendering computer')
@@ -197,6 +200,11 @@ def upload(path, client_secrets, channel, audience, synthetic, reviewed, service
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
+    commands.add_parser('doctor', help='report compatibility without executing native binaries')
+    p = commands.add_parser('prepare-cloud', help='export a script-only cloud rendering bundle')
+    p.add_argument('project'); p.add_argument('--output', required=True)
+    p = commands.add_parser('import-render', help='verify and import a cloud-rendered result')
+    p.add_argument('project'); p.add_argument('--bundle', required=True)
     p = commands.add_parser('init', help='create an original cleaning-service script starter')
     p.add_argument('project')
     p = commands.add_parser('render', help='render your cover image and recorded narration')
@@ -210,12 +218,15 @@ def main(argv=None):
     p.add_argument('--confirm-reviewed', action='store_true')
     args = parser.parse_args(argv)
     try:
-        if args.command == 'init': init(args.project)
+        if args.command == 'doctor': print(json.dumps(cloud_video.doctor(), indent=2))
+        elif args.command == 'prepare-cloud': cloud_video.prepare(args.project, args.output)
+        elif args.command == 'import-render': cloud_video.import_result(args.project, args.bundle)
+        elif args.command == 'init': init(args.project)
         elif args.command == 'render': render(args.project, args.image, args.audio)
         else: upload(args.project, args.client_secrets, args.channel,
                      args.audience, args.synthetic, args.confirm_reviewed)
         return 0
-    except VideoError as exc:
+    except (VideoError, cloud_video.CloudError) as exc:
         print(f'Error: {exc}', file=sys.stderr)
     except ImportError:
         print('Install video-pilot/requirements.txt in a virtual environment.', file=sys.stderr)

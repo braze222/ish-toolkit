@@ -21,5 +21,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m pip install -r video-pilot/requirements.txt
       - run: python -m unittest discover -s video-pilot/tests -v
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core
       - run: python video-pilot/tests/render_smoke.py
+      - run: python -m pip install Pillow==12.3.0
+      - run: python video-pilot/tests/cloud_smoke.py

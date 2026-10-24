@@ -5,11 +5,81 @@ portrait MP4 → private YouTube upload. Existing `elmatrix scan`, vault and too
 installation are untouched. This is a manually operated pilot, not an autonomous
 AI generator, scheduler, monetization system or production release.
 
+## iSH: use the browser-rendering path
+
+The reported Alpine x86 FFmpeg and ffprobe both terminate with SIGSYS (exit 159)
+on this iSH device. Reinstalling the same binaries is not a compatibility fix.
+Local rendering is now refused when the kernel identifies as iSH, before launching
+native media tools. `doctor` does not execute them. Existing packages are not removed
+or changed by these commands.
+
+This path needs only Python's standard library in iSH and a Google Colab session in
+the iPhone browser. It does **not** require another computer, SSH, a paid AI API,
+YouTube OAuth or uploading credentials. It is an interactive handoff, not unattended
+remote execution. Colab's free resources are limited and not guaranteed.
+
+```sh
+cd "$HOME/elmatrix-video-pilot"
+git pull --ff-only origin feature/video-pilot
+python3 video-pilot/elmatrix_video.py doctor
+python3 video-pilot/elmatrix_video.py prepare-cloud \
+  "$HOME/elmatrix-videos/cleaning-001" \
+  --output /mnt/xxix-share/cleaning-001-job.zip
+```
+
+`prepare-cloud` exports only schema, title, description and script. It does not copy
+API keys, vault contents, arbitrary extra metadata or other project files. Inspect
+the script before uploading it: those selected fields will be sent to Google Colab.
+The destination ZIP must not already exist.
+
+Open [the Colab notebook](https://colab.research.google.com/github/braze222/ish-toolkit/blob/feature/video-pilot/video-pilot/Colab_Render.ipynb)
+on the iPhone, sign in, select a **CPU** runtime and run the cells in order. The setup
+cell installs dependencies in the cloud VM, not on the phone. When prompted, select
+`cleaning-001-job.zip` from xxix in Files. The notebook embeds its renderer code
+rather than downloading executable scripts from unpinned URLs.
+
+It creates an original title card and generic synthetic English narration with
+espeak-ng, then a portrait MP4. It requires no supplied image or microphone recording.
+This is a simple narrated-card draft, not AI-generated footage or a cloned voice;
+review voice quality, pronunciation, spelling and usefulness. The first version
+accepts ASCII English title/script text, with script at most 2000 characters and
+rendered audio at most 180 seconds. Edit the project to improve the result; no AI
+writing provider is invoked. Your script controls the narration.
+
+Preview the video in the notebook, download `render-result.zip` and save it to xxix.
+Then run in iSH:
+
+```sh
+python3 video-pilot/elmatrix_video.py import-render \
+  "$HOME/elmatrix-videos/cleaning-001" \
+  --bundle /mnt/xxix-share/render-result.zip
+```
+
+The importer checks fixed archive names, bounded sizes, project identity, the video
+hash and MP4 header without invoking ffprobe. It rejects existing renders, symlink
+destinations, duplicate archive entries and path traversal. Hashes detect mismatches;
+they do not authenticate the renderer or prove a video is safe to open. Import only
+the result you created. Play the MP4 using the iPhone's native player or notebook.
+The file remains under the project directory; you can copy it to Files for viewing.
+
+Neither export, notebook rendering nor import uploads to YouTube. For an iPhone-only
+first publication, review and upload using the official YouTube app. The separate
+OAuth CLI upload remains unverified on iSH; do not treat the cloud renderer as a fix
+for all iSH subprocess/OAuth failures. No monetization eligibility is established.
+
+If interrupted, rerun the notebook with the same input bundle; it uses a new temporary
+workspace each time. That can repeat rendering but never posting. Failed import may
+leave a video without metadata after a filesystem failure; keep the project and use
+a new project directory instead of deleting state blindly. The cloud VM is temporary:
+download your result before ending the session. Files are not automatically saved to Drive.
+
+Google's availability policy: https://research.google.com/colaboratory/faq.html
+
 ## Requirements and installation
 
 Python 3.10+, FFmpeg/ffprobe with libx264 and AAC, and (for upload only) the Python
-packages in requirements.txt. Render on a computer first. iSH performance and OAuth
-browser handoff have not been validated. Do not treat Linux tests as iPhone support.
+packages in requirements.txt. Render on a computer first. Local iSH rendering is disabled; use the browser path above. OAuth
+browser handoff on iSH has not been validated. Do not treat Linux tests as iPhone support.
 
 From this repository's root:
 
