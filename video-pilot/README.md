@@ -189,3 +189,66 @@ Official references:
 - https://developers.google.com/youtube/data/guides/uploading_a_video
 - https://developers.google.com/youtube/data/reference/rest/v3/videos/insert
 - https://googleapis.dev/python/google-auth-oauthlib/latest/reference/google_auth_oauthlib.flow.html
+
+## Hugging Face / Arena: script drafting handoff
+
+Checked 2026-10-24. This pilot integrates **manual prompt export and validated JSON
+import**, not automated inference on either provider. These commands use only Python's
+standard library: no native AI runtime, token entry, website scraping or API request.
+
+Current Hugging Face Inference Providers pricing lists **no included monthly credits
+for free accounts**. Earlier descriptions of $0.10 free credits are stale. API use
+requires purchased credits or an eligible subscription. Model weights being public
+is not the same as free hosted inference, or permission to use every model commercially.
+Review the license of a model before building it into a production pipeline.
+
+Arena documents API integrations for OpenCode and other clients, but its Claude Code
+docs state that **free-router keys work in Claude Code only**. This is not evidence
+of a free general-purpose API for Elmatrix. Workspace API rights may differ. We do
+not impersonate approved clients, bypass key restrictions or call website internals.
+Website/model availability and usage limits must be checked in your own account.
+
+The useful first integration is original script drafting for the cleaning/service
+niche. It works with either website and feeds the existing cloud-rendering workflow.
+
+```sh
+python3 video-pilot/elmatrix_video.py providers
+python3 video-pilot/elmatrix_video.py ai-prompt \
+  "$HOME/elmatrix-videos/cleaning-001" \
+  --provider arena --niche 'cleaning services' \
+  --audience 'South African adults comparing local cleaning services' \
+  --output /mnt/xxix-share/cleaning-ai-prompt.txt
+```
+
+Choose `--provider huggingface` instead for the HuggingChat handoff. Open the saved
+prompt from Files, inspect it and paste it into the website manually. The brief
+includes only selected project text, niche and audience. Do not paste credentials
+or confidential information into a public comparison service.
+
+Ask for the specified JSON response, save it as `/mnt/xxix-share/cleaning-draft.json`
+and import it into a **new** project:
+
+```sh
+python3 video-pilot/elmatrix_video.py import-draft \
+  --provider arena \
+  --input /mnt/xxix-share/cleaning-draft.json \
+  --output "$HOME/elmatrix-videos/cleaning-ai-001"
+```
+
+The importer accepts only schema/title/description/script, bounds lengths and checks
+70–120 words and compatibility with the current English cloud narrator. Extra
+instructions or executable fields are rejected, and nothing is executed. A single
+JSON code fence is accepted; surrounding prose is not. Structural validation is
+not fact-checking or a guarantee of copyright, safety or audience suitability.
+The provider label is user supplied, not cryptographic proof of origin.
+
+Review `cleaning-ai-001/project.json` before passing that new project to prepare-cloud.
+The original project is preserved. This workflow spends no API credits and does not
+activate paid fallbacks, render automatically or publish. It does not guarantee that
+a provider's website is free or available. Future API access needs separately verified
+account rights, cost controls and a live test; no such access is claimed here.
+
+Sources:
+- https://huggingface.co/docs/inference-providers/pricing
+- https://platform.arena.ai/docs/claude-code
+- https://platform.arena.ai/docs/opencode

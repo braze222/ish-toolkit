@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import cloud_video
+import ai_handoff
 
 SCOPES = ['https://www.googleapis.com/auth/youtube.upload',
           'https://www.googleapis.com/auth/youtube.readonly']
@@ -200,6 +201,15 @@ def upload(path, client_secrets, channel, audience, synthetic, reviewed, service
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
+    commands.add_parser('providers', help='show dated provider access notes; no network calls')
+    p = commands.add_parser('ai-prompt', help='prepare a manual Hugging Face or Arena prompt')
+    p.add_argument('project'); p.add_argument('--provider', choices=['huggingface', 'arena'], required=True)
+    p.add_argument('--niche', default='cleaning services')
+    p.add_argument('--audience', default='South African adults comparing local services')
+    p.add_argument('--output', required=True)
+    p = commands.add_parser('import-draft', help='validate AI JSON into a NEW project')
+    p.add_argument('--input', required=True); p.add_argument('--output', required=True)
+    p.add_argument('--provider', choices=['huggingface', 'arena'], required=True)
     commands.add_parser('doctor', help='report compatibility without executing native binaries')
     p = commands.add_parser('prepare-cloud', help='export a script-only cloud rendering bundle')
     p.add_argument('project'); p.add_argument('--output', required=True)
@@ -218,7 +228,10 @@ def main(argv=None):
     p.add_argument('--confirm-reviewed', action='store_true')
     args = parser.parse_args(argv)
     try:
-        if args.command == 'doctor': print(json.dumps(cloud_video.doctor(), indent=2))
+        if args.command == 'providers': print(json.dumps(ai_handoff.catalog(), indent=2))
+        elif args.command == 'ai-prompt': ai_handoff.prompt(args.project, args.provider, args.niche, args.audience, args.output)
+        elif args.command == 'import-draft': ai_handoff.import_draft(args.input, args.output, args.provider)
+        elif args.command == 'doctor': print(json.dumps(cloud_video.doctor(), indent=2))
         elif args.command == 'prepare-cloud': cloud_video.prepare(args.project, args.output)
         elif args.command == 'import-render': cloud_video.import_result(args.project, args.bundle)
         elif args.command == 'init': init(args.project)
