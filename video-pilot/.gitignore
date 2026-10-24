@@ -1,0 +1,5 @@
+.venv/
+projects/
+client*.json
+*token*.json
+__pycache__/
