@@ -137,8 +137,11 @@ def draw_scene(path,project_title,text,index,total,role_override=None,art_path=N
     elif role=='QUESTION':
         headline='Pause. Ask this.'
         size=46
-    elif role=='CHECKLIST':
-        headline=f'One thing to check'
+    elif role in ('CHECKLIST','STEP'):
+        headline='One useful step' if role=='STEP' else 'One thing to check'
+        size=43
+    elif role=='OBJECTION':
+        headline='Watch for this'
         size=43
     else:
         headline=['Here is the useful part','Keep this in mind','Make it practical','A smarter way to do it'][(index-2)%4]
